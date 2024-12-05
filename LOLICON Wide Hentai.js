@@ -6,7 +6,7 @@
 // @name:ko             LOLICON 와이드 Hentai
 // @name:ru             LOLICON Широкий Hentai
 // @namespace           https://greasyfork.org/scripts/516145
-// @version             2024.12.04
+// @version             2024.12.06
 // @description         Full width E-Hentai and Exhentai, dynamically adjusting the page width, also allows you to adjust the size and margins of the thumbnails
 // @description:zh-CN   全屏宽度 E 绅士，动态调整页面宽度，同时支持调整缩略图大小和边距
 // @description:zh-TW   全螢幕寬度 E 紳士，動態調整頁面寬度，並支援調整縮圖大小及邊距
@@ -100,6 +100,14 @@
             'ko': '전체 화면 모드 :',
             'ru': 'Режим полного экрана :'
         },
+        'squareMode': {
+            'en': 'Square Thumbnail :',
+            'zh-CN': '方形缩略图 :',
+            'zh-TW': '方形縮圖 :',
+            'ja': 'スクエアサムネイル :',
+            'ko': '정사각형 썸네일 :',
+            'ru': 'Квадратная миниатюра :'
+        },
         'settings': {
             'en': 'Settings',
             'zh-CN': '设置',
@@ -177,6 +185,7 @@
             ${createInputHTML('margin', margin, config.margin.step, config.margin.min, config.margin.max)}
             ${createInputHTML('pageMargin', pageMargin, config.pageMargin.step, config.pageMargin.min, config.pageMargin.max)}
             ${createCheckboxHTML('fullScreenMode', fullScreenMode === 1)}
+            ${createCheckboxHTML('squareMode', squareMode === 1)}
             ${createButtonsHTML()}
         `;
         } else if (isGalleryPage) {
@@ -235,7 +244,12 @@
             input.addEventListener('input', handleInputChange);
             input.addEventListener('wheel', handleWheelChange);
         });
-        panel.querySelector('#fullScreenModeInput').addEventListener('change', handleCheckboxChange);
+        ['#fullScreenModeInput', '#squareModeInput'].forEach(selector => {
+            const input = panel.querySelector(selector);
+            if (input) {
+                input.addEventListener('change', handleCheckboxChange);
+            }
+        });
     }
 
     function bindButtons(panel) {
@@ -279,13 +293,18 @@
 
     // 复选框变化事件
     function handleCheckboxChange(event) {
-        fullScreenMode = event.target.checked ? 1 : 0;
+        if (event.target.id === 'fullScreenModeInput') {
+            fullScreenMode = event.target.checked ? 1 : 0;
+        } else if (event.target.id === 'squareModeInput') {
+            squareMode = event.target.checked ? 1 : 0;
+        }
         applyChanges();
     }
 
     // 保存设置
     function saveSettings(panel) {
         GM_setValue('fullScreenMode', fullScreenMode);
+        GM_setValue('squareMode', squareMode);
         let errors = [];
         Object.entries(config).forEach(([settingKey, { min, max }]) => {
             const input = panel.querySelector('#' + settingKey + 'Input');
@@ -311,6 +330,7 @@
         margin = GM_getValue('margin');
         pageMargin = GM_getValue('pageMargin');
         fullScreenMode = GM_getValue('fullScreenMode');
+        squareMode = GM_getValue('squareMode');
         applyChanges();
         panel.remove();
     }
@@ -356,11 +376,12 @@
             columnsS = Math.floor(Math.max(c('ido')[0].clientWidth / columnWidthSb, 1));
         }
         let clientWidthS = columnsS * columnWidthSb; // 计算宽度
-        if (fullScreenMode == 1) {
+        if (fullScreenMode) {
             clientWidthS = width - marginAdjustmentS;
         }
         c('ido')[0].style.maxWidth = clientWidthS + 'px'; // 设置最大宽度   1370
-        c('itg gld')[0].style = `grid-template-columns: repeat(${columnsS}, 1fr); Width:100%`; // 设置列数和边距
+        c('itg gld')[0].style.gridTemplateColumns = 'repeat(' + columnsS + ', 1fr)'; // 设置列数
+        c('itg gld')[0].style.width = '100%'; // 设置边距 '100%'
         const searchbox = $('searchbox'); //搜索盒子
         if (searchbox) {
             const tbody = searchbox.querySelector('tbody');
@@ -404,7 +425,7 @@
         let columnsG = Math.floor((width - marginAdjustmentG) / columnWidthG); // 减去边距，并计算列数
         columnsG = Math.max(columnsG, 3);
         let clientWidthG = 700 + (columnsG - 3) * columnWidthG;
-        if (fullScreenMode == 1 && columnsG >= 6) {
+        if (fullScreenMode && columnsG >= 6) {
             clientWidthG = width - marginAdjustmentG;
         }
         if (columnsG >= 6) {
@@ -431,9 +452,9 @@
             }
             gdt.style.maxWidth = clientWidthG + 'px'; // 设置最大宽度 700 940 1180
             if (gdt.classList.contains('gt100')) {
-                gdt.style.gridTemplateColumns = `repeat(` + columnsG * 2 + `, 1fr)`;
+                gdt.style.gridTemplateColumns = 'repeat(' + columnsG * 2 + ', 1fr)';
             } else if (gdt.classList.contains('gt200')) {
-                gdt.style.gridTemplateColumns = `repeat(` + columnsG + `, 1fr)`;
+                gdt.style.gridTemplateColumns = 'repeat(' + columnsG + ', 1fr)';
             }
         }
     }
@@ -443,12 +464,16 @@
         const gl1tElements = document.querySelectorAll('.gl1t');
         gl1tElements.forEach(gl1t => {
             const gl3t = gl1t.querySelector('.gl3t');
+            const gl4t = gl1t.querySelector('.gl4t');
             const gl5t = gl1t.querySelector('.gl5t');
+            const gl6t = gl1t.querySelector('.gl6t');
             const img = gl3t ? gl3t.querySelector('img') : null;
             thumbnailData.push({
                 gl1t,
-                gl5t,
                 gl3t,
+                gl4t,
+                gl5t,
+                gl6t,
                 img,
                 originalWidth: gl3t ? gl3t.clientWidth : 0,
                 originalHeight: gl3t ? gl3t.clientHeight : 0,
@@ -462,42 +487,66 @@
     function modifyThumbnailSize() {
         const minWidthNumber = parseFloat(getComputedStyle(c('ido')[0]).minWidth);
         let columnWidthSbm = Math.max(columnWidthSb, minWidthNumber / Math.floor(Math.max(minWidthNumber / columnWidthSb, 1)));
-        if (fullScreenMode == 1) {
+        if (fullScreenMode) {
             columnWidthSbm = columnWidthS * 2;
         }
         thumbnailData.forEach(data => {
-            const { gl1t, gl3t, gl5t, img, originalWidth, originalHeight, originalImgWidth, originalImgHeight } = data;
+            const { gl1t, gl3t, gl4t, gl5t, gl6t, img, originalWidth, originalHeight, originalImgWidth, originalImgHeight } = data;
+            let zoomFactorL = zoomFactor;
+            if (squareMode && originalWidth < 250) {
+                zoomFactorL = zoomFactor * 250 / originalWidth
+            }
             // 设置 .gl1t 的宽度
             gl1t.style.minWidth = columnWidthS + 'px';
             gl1t.style.maxWidth = columnWidthSbm + 'px';
             // 调整 gl3t 的宽高
             if (gl3t) {
-                const newWidth = originalWidth * zoomFactor;
-                const newHeight = originalHeight * zoomFactor;
+                const newWidth = originalWidth * zoomFactorL;
+                const newHeight = originalHeight * zoomFactorL;
                 gl3t.style.width = newWidth + 'px';
-                gl3t.style.height = newHeight + 'px';
+                if (squareMode) {
+                    gl3t.style.height = newWidth + 'px';
+                } else {
+                    gl3t.style.height = newHeight + 'px';
+                }
             }
-            // 调整图片的宽高
-            if (img) {
-                const newImgWidth = originalImgWidth * zoomFactor;
-                const newImgHeight = originalImgHeight * zoomFactor;
-                img.style.width = newImgWidth + 'px';
-                img.style.height = newImgHeight + 'px';
-                img.style.top = ((originalHeight * zoomFactor) - newImgHeight) / 2 + 'px';
-            }
-            // 小列宽时处理换行逻辑
+            // 小列宽时处理 gl5t 换行逻辑
             if (gl5t) {
                 if (columnWidthS <= 199) {
                     gl5t.style.flexWrap = 'wrap';
                     gl5t.style.height = '92px';
                     const firstChild = gl5t.querySelector('div:nth-child(1)');
-                    if (firstChild) firstChild.style.left = '4.5px';
+                    if (firstChild) { firstChild.style.left = '4.5px'; }
                 } else {
                     gl5t.style.flexWrap = '';
                     gl5t.style.height = '';
                     const firstChild = gl5t.querySelector('div:nth-child(1)');
-                    if (firstChild) firstChild.style.left = '';
+                    if (firstChild) { firstChild.style.left = ''; }
                 }
+            }
+            // 调整图片的宽高
+            if (img) {
+                const newImgWidth = originalImgWidth * zoomFactorL;
+                const newImgHeight = originalImgHeight * zoomFactorL;
+                let width = newImgWidth;
+                let height = newImgHeight;
+                let top = '';
+                let left = '';
+                if (squareMode) {
+                    if (newImgWidth <= newImgHeight) {
+                        top = ((originalWidth * zoomFactorL) - newImgHeight) / 2 + 'px';
+                    } else {
+                        left = ((originalWidth * zoomFactorL) - (newImgWidth * newImgWidth / newImgHeight)) / 2 + 'px';
+                        width = newImgWidth * newImgWidth / newImgHeight;
+                        height = newImgWidth;
+                    }
+                } else {
+                    top = ((originalHeight * zoomFactorL) - newImgHeight) / 2 + 'px';
+                }
+                img.style.width = width + 'px';
+                img.style.height = height + 'px';
+                img.style.top = top;
+                img.style.left = left;
             }
         });
     }
@@ -522,17 +571,18 @@
     }
 
     // 设置默认值
-    const defaults = { zoomFactor: 1, margin: 10, pageMargin: 0, fullScreenMode: 0 };
+    const defaults = { zoomFactor: 1, margin: 10, pageMargin: 0, fullScreenMode: 0, squareMode: 0 };
 
     let zoomFactor = GM_getValue('zoomFactor', defaults.zoomFactor);
     let margin = GM_getValue('margin', defaults.margin);
     let pageMargin = GM_getValue('pageMargin', defaults.pageMargin);
     let fullScreenMode = GM_getValue('fullScreenMode', defaults.fullScreenMode);
+    let squareMode = GM_getValue('squareMode', defaults.squareMode);
 
     const isThumbnailMode = window.location.pathname.indexOf('/g/') != 0 && c('itg gld')[0]; // 非画廊页面 且 缩略图模式
     const isGalleryPage = window.location.pathname.indexOf('/g/') == 0 // /g/ 画廊页面
 
-    GM_registerMenuCommand(`${translate('settings')}`, () => {
+    GM_registerMenuCommand(translate('settings'), () => {
         showSettingsPanel();
     });
 
