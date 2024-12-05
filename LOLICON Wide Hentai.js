@@ -582,9 +582,9 @@
     const isThumbnailMode = window.location.pathname.indexOf('/g/') != 0 && c('itg gld')[0]; // 非画廊页面 且 缩略图模式
     const isGalleryPage = window.location.pathname.indexOf('/g/') == 0 // /g/ 画廊页面
 
-    GM_registerMenuCommand(translate('settings'), () => {
-        showSettingsPanel();
-    });
+    if (isThumbnailMode || isGalleryPage) {
+        GM_registerMenuCommand(translate('settings'), showSettingsPanel);
+    }
 
     initialize();
     calculateDimensions();
