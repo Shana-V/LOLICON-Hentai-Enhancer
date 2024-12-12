@@ -6,7 +6,7 @@
 // @name:ko             LOLICON 와이드 Hentai
 // @name:ru             LOLICON Широкий Hentai
 // @namespace           https://greasyfork.org/scripts/516145
-// @version             2024.12.06
+// @version             2024.12.12
 // @description         Full width E-Hentai and Exhentai, dynamically adjusting the page width, also allows you to adjust the size and margins of the thumbnails
 // @description:zh-CN   全屏宽度 E 绅士，动态调整页面宽度，同时支持调整缩略图大小和边距
 // @description:zh-TW   全螢幕寬度 E 紳士，動態調整頁面寬度，並支援調整縮圖大小及邊距
@@ -38,6 +38,35 @@
     // 获取用户语言
     const userLang = navigator.language || navigator.userLanguage;
 
+    let columnWidthS, columnWidthSb, columnWidthG, marginAdjustmentS, marginAdjustmentG, paddingAdjustmentS;
+
+    // 搜索类别行
+    let initialTableRows = null;
+
+    // 缩略图信息
+    let thumbnailData = [];
+
+    // 配置项
+    const config = {
+        zoomFactor: { step: 0.01, min: 0.5, max: 10 },
+        margin: { step: 1, min: 0, max: 100 },
+        pageMargin: { step: 1, min: 0, max: 1000 },
+        pagePadding: { step: 1, min: 0, max: 100 },
+    }
+
+    // 设置默认值
+    const defaults = { zoomFactor: 1, margin: 10, pageMargin: 10, pagePadding: 10, fullScreenMode: false, squareMode: false };
+
+    let zoomFactor = GM_getValue('zoomFactor', defaults.zoomFactor);
+    let margin = GM_getValue('margin', defaults.margin);
+    let pageMargin = GM_getValue('pageMargin', defaults.pageMargin);
+    let pagePadding = GM_getValue('pagePadding', defaults.pagePadding);
+    let fullScreenMode = GM_getValue('fullScreenMode', defaults.fullScreenMode);
+    let squareMode = GM_getValue('squareMode', defaults.squareMode);
+
+    const isThumbnailMode = window.location.pathname.indexOf('/g/') != 0 && c('itg gld')[0]; // 非画廊页面 且 缩略图模式
+    const isGalleryPage = window.location.pathname.indexOf('/g/') == 0 // /g/ 画廊页面
+
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -45,52 +74,68 @@
     // 定义语言包
     const translations = {
         'zoomFactor': {
-            'en': 'Zoom Factor :',
-            'zh-CN': '缩放比例 :',
-            'zh-TW': '縮放比例 :',
-            'ja': 'ズームファクター :',
-            'ko': '확대 비율 :',
-            'ru': 'Масштаб :'
+            'en': 'Thumbnail Zoom :',
+            'zh-CN': '缩略图缩放 :',
+            'zh-TW': '縮圖縮放 :',
+            'ja': 'サムネイルズーム :',
+            'ko': '썸네일 확대 비율 :',
+            'ru': 'Масштаб миниатюры :'
         },
         'zoomFactorRange': {
-            'en': 'Invalid zoom factor! Please enter a value between 0.5 and 10. Default 1',
-            'zh-CN': '缩放比例无效！请输入 0.5 至 10 之间的值。 默认 1',
-            'zh-TW': '縮放比例無效！請輸入 0.5 至 10 之間的值。 預設為 1',
-            'ja': '無効なズームファクター！ 0.5 から 10 の間の値を入力してください。 デフォルトは 1',
-            'ko': '잘못된 확대 비율! 0.5 에서 10 사이의 값을 입력하세요. 기본값 1',
-            'ru': 'Неверный масштаб! Пожалуйста, введите значение от 0.5 до 10. По умолчанию 1'
+            'en': `Invalid Thumbnail zoom factor! Please enter a value between ${config.zoomFactor.min} and ${config.zoomFactor.max}. Default ${defaults.zoomFactor}`,
+            'zh-CN': `缩略图缩放比例无效！请输入 ${config.zoomFactor.min} 至 ${config.zoomFactor.max} 之间的值。 默认 ${defaults.zoomFactor}`,
+            'zh-TW': `縮圖縮放比例無效！請輸入 ${config.zoomFactor.min} 至 ${config.zoomFactor.max} 之間的值。 預設為 ${defaults.zoomFactor}`,
+            'ja': `無効なサムネイルズーム比率！ ${config.zoomFactor.min} から ${config.zoomFactor.max} の間の値を入力してください。 デフォルトは ${defaults.zoomFactor}`,
+            'ko': `잘못된 썸네일 확대 비율! ${config.zoomFactor.min} 에서 ${config.zoomFactor.max} 사이의 값을 입력하세요. 기본값 ${defaults.zoomFactor}`,
+            'ru': `Неверный масштаб миниатюры! Пожалуйста, введите значение от ${config.zoomFactor.min} до ${config.zoomFactor.max}. По умолчанию ${defaults.zoomFactor}`
         },
         'margin': {
-            'en': 'Minimum Margin :',
-            'zh-CN': '最小边距 :',
-            'zh-TW': '最小邊距 :',
-            'ja': '最小マージン :',
-            'ko': '최소 여백 :',
-            'ru': 'Минимальный отступ :'
+            'en': 'Thumbnail Margin :',
+            'zh-CN': '缩略图边距 :',
+            'zh-TW': '縮圖邊距 :',
+            'ja': 'サムネイルマージン :',
+            'ko': '썸네일 여백 :',
+            'ru': 'Отступы миниатюры :'
         },
         'marginRange': {
-            'en': 'Invalid minimum margin! Please enter a value between 0 and 100. Default 10',
-            'zh-CN': '最小边距无效！请输入 0 至 100 之间的值。 默认 10',
-            'zh-TW': '最小邊距無效！請輸入 0 至 100 之間的值。 預設為 10',
-            'ja': '無効な最小マージン！ 0 から 100 の間の値を入力してください。 デフォルトは 10',
-            'ko': '잘못된 최소 여백! 0 에서 100 사이의 값을 입력하세요. 기본값 10',
-            'ru': 'Неверный Минимальный отступ! Пожалуйста, введите значение от 0 до 100. По умолчанию 10'
+            'en': `Invalid Thumbnail margin! Please enter a value between ${config.margin.min} and ${config.margin.max}. Default ${defaults.margin}`,
+            'zh-CN': `缩略图边距无效！请输入 ${config.margin.min} 至 ${config.margin.max} 之间的值。 默认 ${defaults.margin}`,
+            'zh-TW': `縮圖邊距無效！請輸入 ${config.margin.min} 至 ${config.margin.max} 之間的值。 預設為 ${defaults.margin}`,
+            'ja': `無効なサムネイルマージン！ ${config.margin.min} から ${config.margin.max} の間の値を入力してください。 デフォルトは ${defaults.margin}`,
+            'ko': `잘못된 썸네일 여백! ${config.margin.min} 에서 ${config.margin.max} 사이의 값을 입력하세요. 기본값 ${defaults.margin}`,
+            'ru': `Неверный Отступы миниатюры! Пожалуйста, введите значение от ${config.margin.min} до ${config.margin.max}. По умолчанию ${defaults.margin}`
         },
         'pageMargin': {
             'en': 'Page Margin :',
-            'zh-CN': '页面边距 :',
-            'zh-TW': '頁面邊距 :',
+            'zh-CN': '页面外边距 :',
+            'zh-TW': '頁面外邊距 :',
             'ja': 'ページマージン :',
-            'ko': '페이지 여백 :',
-            'ru': 'Страница отступ :'
+            'ko': '페이지 외부 여백 :',
+            'ru': 'Внешний отступ страницы :'
         },
         'pageMarginRange': {
-            'en': 'Invalid page margin! Please enter a value between 0 and 1000. Default 0',
-            'zh-CN': '页面边距无效！请输入 0 至 1000 之间的值。 默认 0',
-            'zh-TW': '頁面邊距無效！請輸入 0 至 1000 之間的值。 預設為 0',
-            'ja': '無効なページマージン！ 0 から 1000 の間の値を入力してください。 デフォルトは 0',
-            'ko': '잘못된 페이지 여백! 0 에서 1000 사이의 값을 입력하세요. 기본값 0',
-            'ru': 'Неверный Страница отступ! Пожалуйста, введите значение от 0 до 1000. По умолчанию 0'
+            'en': `Invalid page margin! Please enter a value between ${config.pageMargin.min} and ${config.pageMargin.max}. Default ${defaults.pageMargin}`,
+            'zh-CN': `页面外边距无效！请输入 ${config.pageMargin.min} 至 ${config.pageMargin.max} 之间的值。 默认 ${defaults.pageMargin}`,
+            'zh-TW': `頁面外邊距無效！請輸入 ${config.pageMargin.min} 至 ${config.pageMargin.max} 之間的值。 預設為 ${defaults.pageMargin}`,
+            'ja': `無効なページマージン！ ${config.pageMargin.min} から ${config.pageMargin.max} の間の値を入力してください。 デフォルトは ${defaults.pageMargin}`,
+            'ko': `잘못된 페이지 외부 여백! ${config.pageMargin.min} 에서 ${config.pageMargin.max} 사이의 값을 입력하세요. 기본값 ${defaults.pageMargin}`,
+            'ru': `Неверный Внешний отступ страницы! Пожалуйста, введите значение от ${config.pageMargin.min} до ${config.pageMargin.max}. По умолчанию ${defaults.pageMargin}`
+        },
+        'pagePadding': {
+            'en': 'Page Padding :',
+            'zh-CN': '页面内边距 :',
+            'zh-TW': '頁面內邊距 :',
+            'ja': 'ページパディング :',
+            'ko': '페이지 내부 여백 :',
+            'ru': 'Внутренний отступ страницы :'
+        },
+        'pagePaddingRange': {
+            'en': `Invalid page padding! Please enter a value between ${config.pagePadding.min} and ${config.pagePadding.max}. Default ${defaults.pagePadding}`,
+            'zh-CN': `页面内边距无效！请输入 ${config.pagePadding.min} 至 ${config.pagePadding.max} 之间的值。 默认 ${defaults.pagePadding}`,
+            'zh-TW': `頁面內邊距無效！請輸入 ${config.pagePadding.min} 至 ${config.pagePadding.max} 之間的值。 預設為 ${defaults.pagePadding}`,
+            'ja': `無効なページパディング！ ${config.pagePadding.min} から ${config.pagePadding.max} の間の値を入力してください。 デフォルトは ${defaults.pagePadding}`,
+            'ko': `잘못된 페이지 내부 여백! ${config.pagePadding.min} 에서 ${config.pagePadding.max} 사이의 값을 입력하세요. 기본값 ${defaults.pagePadding}`,
+            'ru': `Неверный Внутренний отступ страницы! Пожалуйста, введите значение от ${config.pagePadding.min} до ${config.pagePadding.max}. По умолчанию ${defaults.pagePadding}`
         },
         'fullScreenMode': {
             'en': 'Full Screen Mode :',
@@ -184,15 +229,16 @@
             ${createInputHTML('zoomFactor', zoomFactor, config.zoomFactor.step, config.zoomFactor.min, config.zoomFactor.max)}
             ${createInputHTML('margin', margin, config.margin.step, config.margin.min, config.margin.max)}
             ${createInputHTML('pageMargin', pageMargin, config.pageMargin.step, config.pageMargin.min, config.pageMargin.max)}
-            ${createCheckboxHTML('fullScreenMode', fullScreenMode === 1)}
-            ${createCheckboxHTML('squareMode', squareMode === 1)}
+            ${createInputHTML('pagePadding', pagePadding, config.pagePadding.step, config.pagePadding.min, config.pagePadding.max)}
+            ${createCheckboxHTML('fullScreenMode', fullScreenMode == true)}
+            ${createCheckboxHTML('squareMode', squareMode == true)}
             ${createButtonsHTML()}
         `;
         } else if (isGalleryPage) {
             panel.innerHTML = `
             <h3 style='margin: 0; margin-bottom: 10px; font-size: 16px; color: #00AAFF; text-align: center;'>${translate('settingsPanel')}</h3>
             ${createInputHTML('pageMargin', pageMargin, config.pageMargin.step, config.pageMargin.min, config.pageMargin.max)}
-            ${createCheckboxHTML('fullScreenMode', fullScreenMode === 1)}
+            ${createCheckboxHTML('fullScreenMode', fullScreenMode == true)}
             ${createButtonsHTML()}
         `;
         }
@@ -271,6 +317,8 @@
             margin = numValue;
         } else if (id.includes('pageMargin') && numValue >= config.pageMargin.min && numValue <= config.pageMargin.max) {
             pageMargin = numValue;
+        } else if (id.includes('pagePadding') && numValue >= config.pagePadding.min && numValue <= config.pagePadding.max) {
+            pagePadding = numValue;
         }
         applyChanges();
     }
@@ -294,9 +342,9 @@
     // 复选框变化事件
     function handleCheckboxChange(event) {
         if (event.target.id === 'fullScreenModeInput') {
-            fullScreenMode = event.target.checked ? 1 : 0;
+            fullScreenMode = event.target.checked ? true : false;
         } else if (event.target.id === 'squareModeInput') {
-            squareMode = event.target.checked ? 1 : 0;
+            squareMode = event.target.checked ? true : false;
         }
         applyChanges();
     }
@@ -329,6 +377,7 @@
         zoomFactor = GM_getValue('zoomFactor');
         margin = GM_getValue('margin');
         pageMargin = GM_getValue('pageMargin');
+        pagePadding = GM_getValue('pagePadding');
         fullScreenMode = GM_getValue('fullScreenMode');
         squareMode = GM_getValue('squareMode');
         applyChanges();
@@ -360,28 +409,27 @@
 
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
+    // 计算尺寸
     function calculateDimensions() {
         columnWidthS = 250 * zoomFactor + margin * 2; // 每列的宽度 250-400 270
         columnWidthSb = columnWidthS + (2 / devicePixelRatio); // 加上缩略图边框，边框宽度受设备像素比影响
         columnWidthG = 240; // 画廊每列的宽度
         marginAdjustmentS = 14 + pageMargin * 2; // 页面边距调整值 body-padding:2 ido-padding:5
         marginAdjustmentG = 34 + pageMargin * 2; // 画廊页面边距调整值 body-padding:2 gdt-padding:15
+        paddingAdjustmentS = pagePadding * 2; // 页面内边距调整值
     }
 
     // 根据页面宽度动态调整列数 非画廊页面 且 缩略图模式
     function adjustColumnsS() {
         const width = window.innerWidth;
-        let columnsS = Math.floor((width - marginAdjustmentS) / columnWidthSb); // 计算列数
-        if (columnsS < 3) {
-            columnsS = Math.floor(Math.max(c('ido')[0].clientWidth / columnWidthSb, 1));
-        }
-        let clientWidthS = columnsS * columnWidthSb; // 计算宽度
-        if (fullScreenMode) {
-            clientWidthS = width - marginAdjustmentS;
-        }
-        c('ido')[0].style.maxWidth = clientWidthS + 'px'; // 设置最大宽度   1370
+        const minWidthNumber = parseFloat(getComputedStyle(c('ido')[0]).minWidth);
+        let clientWidthS_itg = Math.max(width - marginAdjustmentS - paddingAdjustmentS, minWidthNumber); // 计算宽度
+        let columnsS = Math.max(Math.floor(clientWidthS_itg / columnWidthSb), 1); // 计算列数
+        clientWidthS_itg = Math.max(columnsS * columnWidthSb, fullScreenMode ? clientWidthS_itg : minWidthNumber); // 根据全屏模式调整
+        let clientWidthS_ido = Math.min(clientWidthS_itg + paddingAdjustmentS, width);
+        c('ido')[0].style.maxWidth = clientWidthS_ido + 'px'; // 设置最大宽度   1370
         c('itg gld')[0].style.gridTemplateColumns = 'repeat(' + columnsS + ', 1fr)'; // 设置列数
-        c('itg gld')[0].style.width = '100%'; // 设置边距 '100%'
+        c('itg gld')[0].style.width = clientWidthS_itg + 'px'; // 设置边距 '99%'
         const searchbox = $('searchbox'); //搜索盒子
         if (searchbox) {
             const tbody = searchbox.querySelector('tbody');
@@ -390,7 +438,7 @@
                 if (!initialTableRows) {
                     initialTableRows = tbody.innerHTML;
                 }
-                if (clientWidthS >= 1460) {
+                if (clientWidthS_ido >= 1460) {
                     // 合并搜索类别行
                     const rows = tbody.querySelectorAll('tr');
                     if (rows.length >= 2) {
@@ -407,7 +455,7 @@
                 }
             }
             // 调整搜索盒子大小
-            if (clientWidthS >= 1460) {
+            if (clientWidthS_ido >= 1460) {
                 if (c('idi')[0]) { c('idi')[0].style.width = 720 + 670 + 'px'; }
                 if (c('idi')[1]) { c('idi')[1].style.width = 720 + 670 + 'px'; }
                 if ($('f_search')) { $('f_search').style.width = 560 + 670 + 'px'; }
@@ -424,17 +472,17 @@
         const width = window.innerWidth;
         let columnsG = Math.floor((width - marginAdjustmentG) / columnWidthG); // 减去边距，并计算列数
         columnsG = Math.max(columnsG, 3);
-        let clientWidthG = 700 + (columnsG - 3) * columnWidthG;
+        let clientWidthG_gdt = 700 + (columnsG - 3) * columnWidthG;
         if (fullScreenMode && columnsG >= 6) {
-            clientWidthG = width - marginAdjustmentG;
+            clientWidthG_gdt = width - marginAdjustmentG;
         }
         if (columnsG >= 6) {
-            if (c('gm')[0]) { c('gm')[0].style.maxWidth = (clientWidthG + 20) + 'px'; } // 设置最详情大宽度 720 960 1200
-            if (c('gm')[1]) { c('gm')[1].style.maxWidth = (clientWidthG + 20) + 'px'; } // 设置最评论区大宽度 720 960 1200
-            if ($('gd2')) { $('gd2').style.width = (clientWidthG - 255) + 'px'; } // 设置标题栏宽度 710 925
-            if ($('gmid')) { $('gmid').style.width = (clientWidthG - 250) + 'px'; } // 设置标签栏宽度 710 930
-            if ($('gd4')) { $('gd4').style.width = (clientWidthG - 600) + 'px'; } // 设置标签栏宽度 360 580
-            if ($('gdo')) { $('gdo').style.maxWidth = (clientWidthG + 20) + 'px'; } // 设置缩略图设置栏最大宽度 720 960 1200
+            if (c('gm')[0]) { c('gm')[0].style.maxWidth = (clientWidthG_gdt + 20) + 'px'; } // 设置最详情大宽度 720 960 1200
+            if (c('gm')[1]) { c('gm')[1].style.maxWidth = (clientWidthG_gdt + 20) + 'px'; } // 设置最评论区大宽度 720 960 1200
+            if ($('gd2')) { $('gd2').style.width = (clientWidthG_gdt - 255) + 'px'; } // 设置标题栏宽度 710 925
+            if ($('gmid')) { $('gmid').style.width = (clientWidthG_gdt - 250) + 'px'; } // 设置标签栏宽度 710 930
+            if ($('gd4')) { $('gd4').style.width = (clientWidthG_gdt - 600) + 'px'; } // 设置标签栏宽度 360 580
+            if ($('gdo')) { $('gdo').style.maxWidth = (clientWidthG_gdt + 20) + 'px'; } // 设置缩略图设置栏最大宽度 720 960 1200
         } else {
             if (c('gm')[0]) { c('gm')[0].style.maxWidth = ''; } // 设置最详情大宽度
             if (c('gm')[1]) { c('gm')[1].style.maxWidth = ''; } // 设置最评论区大宽度
@@ -447,10 +495,10 @@
         if (gdt) {
             if (columnsG < 6) {
                 const minWidthNumber = parseFloat(getComputedStyle(c('gm')[0]).maxWidth);
-                clientWidthG = minWidthNumber - 20;
+                clientWidthG_gdt = minWidthNumber - 20;
                 columnsG = Math.floor(minWidthNumber / columnWidthG);
             }
-            gdt.style.maxWidth = clientWidthG + 'px'; // 设置最大宽度 700 940 1180
+            gdt.style.maxWidth = clientWidthG_gdt + 'px'; // 设置最大宽度 700 940 1180
             if (gdt.classList.contains('gt100')) {
                 gdt.style.gridTemplateColumns = 'repeat(' + columnsG * 2 + ', 1fr)';
             } else if (gdt.classList.contains('gt200')) {
@@ -555,37 +603,12 @@
 
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
-    let columnWidthS, columnWidthSb, columnWidthG, marginAdjustmentS, marginAdjustmentG;
-
-    // 搜索类别行
-    let initialTableRows = null;
-
-    // 缩略图信息
-    let thumbnailData = [];
-
-    // 配置项
-    const config = {
-        zoomFactor: { step: 0.01, min: 0.5, max: 10 },
-        margin: { step: 1, min: 0, max: 100 },
-        pageMargin: { step: 1, min: 0, max: 1000 },
-    }
-
-    // 设置默认值
-    const defaults = { zoomFactor: 1, margin: 10, pageMargin: 0, fullScreenMode: 0, squareMode: 0 };
-
-    let zoomFactor = GM_getValue('zoomFactor', defaults.zoomFactor);
-    let margin = GM_getValue('margin', defaults.margin);
-    let pageMargin = GM_getValue('pageMargin', defaults.pageMargin);
-    let fullScreenMode = GM_getValue('fullScreenMode', defaults.fullScreenMode);
-    let squareMode = GM_getValue('squareMode', defaults.squareMode);
-
-    const isThumbnailMode = window.location.pathname.indexOf('/g/') != 0 && c('itg gld')[0]; // 非画廊页面 且 缩略图模式
-    const isGalleryPage = window.location.pathname.indexOf('/g/') == 0 // /g/ 画廊页面
-
+    // 设置菜单
     if (isThumbnailMode || isGalleryPage) {
         GM_registerMenuCommand(translate('settings'), showSettingsPanel);
     }
 
+    // 初始化
     initialize();
     calculateDimensions();
     if (isThumbnailMode) {
