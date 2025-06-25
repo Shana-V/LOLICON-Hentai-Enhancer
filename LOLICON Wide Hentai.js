@@ -6,7 +6,7 @@
 // @name:ko             LOLICON 와이드 Hentai
 // @name:ru             LOLICON Широкий Hentai
 // @namespace           https://greasyfork.org/scripts/516145
-// @version             2024.12.24
+// @version             2025.06.24
 // @description         Full width E-Hentai and Exhentai, dynamically adjusting the page width, also allows you to adjust the size and margins of the thumbnails, infinite scroll to automatically load the next page
 // @description:zh-CN   全屏宽度 E 绅士，动态调整页面宽度，同时支持调整缩略图大小和边距，无限滚动自动加载下一页
 // @description:zh-TW   全螢幕寬度 E 紳士，動態調整頁面寬度，並支援調整縮圖大小及邊距，無限滾動自動加載下一頁
@@ -569,6 +569,39 @@
             if ($('f_search')) { $('f_search').style.width = (isLargerWidth ? 560 + 670 : 560) + 'px'; }
         }
 
+        // 调整更窄的收藏页面，和首页保持一致
+        if (isFavoritesPage && clientWidthS_ido < (930 + paddingAdjustmentS)) {
+            const noselWidth = Math.max(735, Math.min(825, clientWidthS_ido));
+            if (c('nosel')[1]) { c('nosel')[1].style.width = noselWidth + 'px'; }
+            const fpElements = document.querySelectorAll('div.fp');
+            const fpWidth = Math.max(142, Math.min(160, (clientWidthS_ido - 16) / 5 - 1)) + 'px';
+            for (let i = 0; i < Math.min(10, fpElements.length); i++) {
+                fpElements[i].style.width = fpWidth;
+            }
+            const idoTarget = document.querySelector('.ido > div:nth-child(3)');
+            if (idoTarget) {
+                idoTarget.style.width = noselWidth + 'px';
+                const inputTarget = idoTarget.querySelector('form:nth-child(1) > div:nth-child(2) > input:nth-child(1)');
+                if (inputTarget) {
+                    inputTarget.setAttribute('size', Math.max(84, Math.min(90, 84 + (noselWidth - 735) / 15)));
+                }
+            }
+        } else if (isFavoritesPage) {
+            if (c('nosel')[1]) { c('nosel')[1].style.width = '825px'; }
+            const fpElements = document.querySelectorAll('div.fp');
+            for (let i = 0; i < Math.min(10, fpElements.length); i++) {
+                fpElements[i].style.width = '160px';
+            }
+            const idoTarget = document.querySelector('.ido > div:nth-child(3)');
+            if (idoTarget) {
+                idoTarget.style.width = '825px';
+                const inputTarget = idoTarget.querySelector('form:nth-child(1) > div:nth-child(2) > input:nth-child(1)');
+                if (inputTarget) {
+                    inputTarget.setAttribute('size', '90');
+                }
+            }
+        }
+
         if (columnsS != OLDcolumnsS && liveURLUpdate && !isPopularPage && !isFavoritesPage) {
             throttledGetTheLeftmostGl1t();
             OLDcolumnsS = columnsS;
@@ -921,7 +954,9 @@
     // 初始化
     initialize();
     calculateDimensions();
-
+    if (isFavoritesPage) {
+        c('ido')[0].style.minWidth = '740px';
+    }
     if (isThumbnailMode) {
         collectThumbnailData();
         modifyThumbnailSize();
