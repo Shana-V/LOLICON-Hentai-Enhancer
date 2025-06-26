@@ -6,7 +6,7 @@
 // @name:ko             LOLICON 와이드 Hentai
 // @name:ru             LOLICON Широкий Hentai
 // @namespace           https://greasyfork.org/scripts/516145
-// @version             2025.06.24
+// @version             2025.06.26
 // @description         Full width E-Hentai and Exhentai, dynamically adjusting the page width, also allows you to adjust the size and margins of the thumbnails, infinite scroll to automatically load the next page
 // @description:zh-CN   全屏宽度 E 绅士，动态调整页面宽度，同时支持调整缩略图大小和边距，无限滚动自动加载下一页
 // @description:zh-TW   全螢幕寬度 E 紳士，動態調整頁面寬度，並支援調整縮圖大小及邊距，無限滾動自動加載下一頁
@@ -21,6 +21,7 @@
 // @run-at              document-end
 // @grant               GM_setValue
 // @grant               GM_getValue
+// @grant               GM_deleteValue
 // @grant               GM_registerMenuCommand
 // @noframes
 // ==/UserScript==
@@ -58,16 +59,20 @@
 
     // 配置项
     const config = {
-        zoomFactor: { step: 0.01, min: 0.5, max: 10 },
+        zoomFactorS: { step: 0.01, min: 0.5, max: 10 },
+        zoomFactorG: { step: 0.01, min: 0.5, max: 10 },
         margin: { step: 1, min: 0, max: 100 },
+        spacing: { step: 1, min: 0, max: 100 },
         pageMargin: { step: 1, min: 0, max: 1000 },
         pagePadding: { step: 1, min: 0, max: 100 },
     };
 
     // 设置默认值
     const defaults = {
-        zoomFactor: 1,
+        zoomFactorS: 1,
+        zoomFactorG: 1,
         margin: 10,
+        spacing: 15,
         pageMargin: 10,
         pagePadding: 10,
         fullScreenMode: false,
@@ -77,8 +82,10 @@
         liveURLUpdate: false
     };
 
-    let zoomFactor = GM_getValue('zoomFactor', defaults.zoomFactor);
+    let zoomFactorS = GM_getValue('zoomFactorS', defaults.zoomFactorS);
+    let zoomFactorG = GM_getValue('zoomFactorG', defaults.zoomFactorG);
     let margin = GM_getValue('margin', defaults.margin);
+    let spacing = GM_getValue('spacing', defaults.spacing);
     let pageMargin = GM_getValue('pageMargin', defaults.pageMargin);
     let pagePadding = GM_getValue('pagePadding', defaults.pagePadding);
     let fullScreenMode = GM_getValue('fullScreenMode', defaults.fullScreenMode);
@@ -100,22 +107,22 @@
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
     // 定义语言包
-    const translations = {
-        'zoomFactor': {
+    const _translations = {
+        'zoomFactorS': {
             'en': 'Thumbnail Zoom',
             'zh-CN': '缩略图缩放',
             'zh-TW': '縮圖縮放',
             'ja': 'サムネイルズーム',
             'ko': '썸네일 확대 비율',
-            'ru': 'Масштаб миниатюры :'
+            'ru': 'Масштаб миниатюры'
         },
-        'zoomFactorRange': {
-            'en': `Invalid Thumbnail zoom factor! Please enter a value between ${config.zoomFactor.min} and ${config.zoomFactor.max}. Default ${defaults.zoomFactor}`,
-            'zh-CN': `缩略图缩放比例无效！请输入 ${config.zoomFactor.min} 至 ${config.zoomFactor.max} 之间的值。 默认 ${defaults.zoomFactor}`,
-            'zh-TW': `縮圖縮放比例無效！請輸入 ${config.zoomFactor.min} 至 ${config.zoomFactor.max} 之間的值。 預設為 ${defaults.zoomFactor}`,
-            'ja': `無効なサムネイルズーム比率！ ${config.zoomFactor.min} から ${config.zoomFactor.max} の間の値を入力してください。 デフォルトは ${defaults.zoomFactor}`,
-            'ko': `잘못된 썸네일 확대 비율! ${config.zoomFactor.min} 에서 ${config.zoomFactor.max} 사이의 값을 입력하세요. 기본값 ${defaults.zoomFactor}`,
-            'ru': `Неверный масштаб миниатюры! Пожалуйста, введите значение от ${config.zoomFactor.min} до ${config.zoomFactor.max}. По умолчанию ${defaults.zoomFactor}`
+        'zoomFactorG': {
+            'en': 'Gallery Thumbnail Zoom',
+            'zh-CN': '画廊缩略图缩放',
+            'zh-TW': '畫廊縮圖縮放',
+            'ja': 'ギャラリーサムネイルズーム',
+            'ko': '갤러리 썸네일 확대 비율',
+            'ru': 'Масштаб миниатюр галереи'
         },
         'margin': {
             'en': 'Thumbnail Margin',
@@ -123,15 +130,15 @@
             'zh-TW': '縮圖邊距',
             'ja': 'サムネイルマージン',
             'ko': '썸네일 여백',
-            'ru': 'Отступы миниатюры :'
+            'ru': 'Отступы миниатюры'
         },
-        'marginRange': {
-            'en': `Invalid Thumbnail margin! Please enter a value between ${config.margin.min} and ${config.margin.max}. Default ${defaults.margin}`,
-            'zh-CN': `缩略图边距无效！请输入 ${config.margin.min} 至 ${config.margin.max} 之间的值。 默认 ${defaults.margin}`,
-            'zh-TW': `縮圖邊距無效！請輸入 ${config.margin.min} 至 ${config.margin.max} 之間的值。 預設為 ${defaults.margin}`,
-            'ja': `無効なサムネイルマージン！ ${config.margin.min} から ${config.margin.max} の間の値を入力してください。 デフォルトは ${defaults.margin}`,
-            'ko': `잘못된 썸네일 여백! ${config.margin.min} 에서 ${config.margin.max} 사이의 값을 입력하세요. 기본값 ${defaults.margin}`,
-            'ru': `Неверный Отступы миниатюры! Пожалуйста, введите значение от ${config.margin.min} до ${config.margin.max}. По умолчанию ${defaults.margin}`
+        'spacing': {
+            'en': 'Thumbnail Spacing',
+            'zh-CN': '缩略图间距',
+            'zh-TW': '縮圖間距',
+            'ja': 'サムネイル間隔',
+            'ko': '썸네일 간격',
+            'ru': 'Интервал миниатюр'
         },
         'pageMargin': {
             'en': 'Page Margin',
@@ -139,15 +146,7 @@
             'zh-TW': '頁面外邊距',
             'ja': 'ページマージン',
             'ko': '페이지 외부 여백',
-            'ru': 'Внешний отступ страницы :'
-        },
-        'pageMarginRange': {
-            'en': `Invalid page margin! Please enter a value between ${config.pageMargin.min} and ${config.pageMargin.max}. Default ${defaults.pageMargin}`,
-            'zh-CN': `页面外边距无效！请输入 ${config.pageMargin.min} 至 ${config.pageMargin.max} 之间的值。 默认 ${defaults.pageMargin}`,
-            'zh-TW': `頁面外邊距無效！請輸入 ${config.pageMargin.min} 至 ${config.pageMargin.max} 之間的值。 預設為 ${defaults.pageMargin}`,
-            'ja': `無効なページマージン！ ${config.pageMargin.min} から ${config.pageMargin.max} の間の値を入力してください。 デフォルトは ${defaults.pageMargin}`,
-            'ko': `잘못된 페이지 외부 여백! ${config.pageMargin.min} 에서 ${config.pageMargin.max} 사이의 값을 입력하세요. 기본값 ${defaults.pageMargin}`,
-            'ru': `Неверный Внешний отступ страницы! Пожалуйста, введите значение от ${config.pageMargin.min} до ${config.pageMargin.max}. По умолчанию ${defaults.pageMargin}`
+            'ru': 'Внешний отступ страницы'
         },
         'pagePadding': {
             'en': 'Page Padding',
@@ -155,15 +154,7 @@
             'zh-TW': '頁面內邊距',
             'ja': 'ページパディング',
             'ko': '페이지 내부 여백',
-            'ru': 'Внутренний отступ страницы :'
-        },
-        'pagePaddingRange': {
-            'en': `Invalid page padding! Please enter a value between ${config.pagePadding.min} and ${config.pagePadding.max}. Default ${defaults.pagePadding}`,
-            'zh-CN': `页面内边距无效！请输入 ${config.pagePadding.min} 至 ${config.pagePadding.max} 之间的值。 默认 ${defaults.pagePadding}`,
-            'zh-TW': `頁面內邊距無效！請輸入 ${config.pagePadding.min} 至 ${config.pagePadding.max} 之間的值。 預設為 ${defaults.pagePadding}`,
-            'ja': `無効なページパディング！ ${config.pagePadding.min} から ${config.pagePadding.max} の間の値を入力してください。 デフォルトは ${defaults.pagePadding}`,
-            'ko': `잘못된 페이지 내부 여백! ${config.pagePadding.min} 에서 ${config.pagePadding.max} 사이의 값을 입력하세요. 기본값 ${defaults.pagePadding}`,
-            'ru': `Неверный Внутренний отступ страницы! Пожалуйста, введите значение от ${config.pagePadding.min} до ${config.pagePadding.max}. По умолчанию ${defaults.pagePadding}`
+            'ru': 'Внутренний отступ страницы'
         },
         'fullScreenMode': {
             'en': 'Full Screen Mode',
@@ -171,7 +162,7 @@
             'zh-TW': '全螢幕模式',
             'ja': 'フルスクリーンモード',
             'ko': '전체 화면 모드',
-            'ru': 'Режим полного экрана :'
+            'ru': 'Режим полного экрана'
         },
         'squareMode': {
             'en': 'Square Thumbnail',
@@ -179,7 +170,7 @@
             'zh-TW': '方形縮圖',
             'ja': 'スクエアサムネイル',
             'ko': '정사각형 썸네일',
-            'ru': 'Квадратная миниатюра :'
+            'ru': 'Квадратная миниатюра'
         },
         'infiniteScroll': {
             'en': 'Infinite Scroll',
@@ -247,6 +238,48 @@
         },
     };
 
+    // 模板
+    const rangeTemplates = {
+        'en': `Invalid {{label}}! Please enter a value between {{min}} and {{max}}. Default {{default}}.`,
+        'zh-CN': `{{label}}无效！请输入介于 {{min}} 和 {{max}} 之间的值。默认值为 {{default}}。`,
+        'zh-TW': `{{label}}無效！請輸入介於 {{min}} 和 {{max}} 之間的值。預設值為 {{default}}。`,
+        'ja': `{{label}}が無効です！{{min}}から{{max}}までの値を入力してください。デフォルトは{{default}}です。`,
+        'ko': `잘못된 {{label}}! {{min}} 에서 {{max}} 사이의 값을 입력하세요. 기본값 {{default}}`,
+        'ru': `Неверный {{label}}! Пожалуйста, введите значение от {{min}} до {{max}}. По умолчанию {{default}}`
+    };
+
+    // 模板替换函数
+    function interpolate(template, values) {
+        return template.replace(/{{(.*?)}}/g, (_, key) => values[key.trim()] ?? '');
+    }
+
+    // 包装 Proxy
+    const translations = new Proxy(_translations, {
+        get(target, prop) {
+            // 如果访问的是 xxxRange
+            const match = prop.match(/^(.+)Range$/);
+            if (match) {
+                const baseKey = match[1];
+                const labelEntry = target[baseKey];
+                if (!labelEntry || !config[baseKey] || !defaults[baseKey]) return undefined;
+
+                const output = {};
+                for (const lang of Object.keys(rangeTemplates)) {
+                    output[lang] = interpolate(rangeTemplates[lang], {
+                        label: labelEntry[lang],
+                        min: config[baseKey].min,
+                        max: config[baseKey].max,
+                        default: defaults[baseKey]
+                    });
+                }
+                return output;
+            }
+
+            // 普通字段直接返回
+            return target[prop];
+        }
+    });
+
     // 根据用户语言选择对应的文本
     const translate = (key) => {
         const lang = userLang.substring(0, 2);
@@ -287,7 +320,7 @@
         if (isThumbnailMode) {
             panel.innerHTML = `
             <h3 style='margin: 0; margin-bottom: 10px; font-size: 16px; color: #00AAFF; text-align: center;'>${translate('settingsPanel')}</h3>
-            ${createInputHTML('zoomFactor', zoomFactor, config.zoomFactor.step, config.zoomFactor.min, config.zoomFactor.max)}
+            ${createInputHTML('zoomFactorS', zoomFactorS, config.zoomFactorS.step, config.zoomFactorS.min, config.zoomFactorS.max)}
             ${createInputHTML('margin', margin, config.margin.step, config.margin.min, config.margin.max)}
             ${createInputHTML('pageMargin', pageMargin, config.pageMargin.step, config.pageMargin.min, config.pageMargin.max)}
             ${createInputHTML('pagePadding', pagePadding, config.pagePadding.step, config.pagePadding.min, config.pagePadding.max)}
@@ -301,6 +334,8 @@
         } else if (isGalleryPage) {
             panel.innerHTML = `
             <h3 style='margin: 0; margin-bottom: 10px; font-size: 16px; color: #00AAFF; text-align: center;'>${translate('settingsPanel')}</h3>
+            ${createInputHTML('zoomFactorG', zoomFactorG, config.zoomFactorG.step, config.zoomFactorG.min, config.zoomFactorG.max)}
+            ${createInputHTML('spacing', spacing, config.spacing.step, config.spacing.min, config.spacing.max)}
             ${createInputHTML('pageMargin', pageMargin, config.pageMargin.step, config.pageMargin.min, config.pageMargin.max)}
             ${createCheckboxHTML('fullScreenMode', fullScreenMode == true)}
             ${createButtonsHTML()}
@@ -389,10 +424,14 @@
         const { id, value } = event.target;
         const numValue = parseFloat(value);
 
-        if (id.includes('zoomFactor') && numValue >= config.zoomFactor.min && numValue <= config.zoomFactor.max) {
-            zoomFactor = numValue;
+        if (id.includes('zoomFactorS') && numValue >= config.zoomFactorS.min && numValue <= config.zoomFactorS.max) {
+            zoomFactorS = numValue;
+        } else if (id.includes('zoomFactorG') && numValue >= config.zoomFactorG.min && numValue <= config.zoomFactorG.max) {
+            zoomFactorG = numValue;
         } else if (id.includes('margin') && numValue >= config.margin.min && numValue <= config.margin.max) {
             margin = numValue;
+        } else if (id.includes('spacing') && numValue >= config.spacing.min && numValue <= config.spacing.max) {
+            spacing = numValue;
         } else if (id.includes('pageMargin') && numValue >= config.pageMargin.min && numValue <= config.pageMargin.max) {
             pageMargin = numValue;
         } else if (id.includes('pagePadding') && numValue >= config.pagePadding.min && numValue <= config.pagePadding.max) {
@@ -468,8 +507,10 @@
 
     // 取消设置
     function cancelSettings(panel) {
-        zoomFactor = GM_getValue('zoomFactor');
+        zoomFactorS = GM_getValue('zoomFactorS');
+        zoomFactorG = GM_getValue('zoomFactorG');
         margin = GM_getValue('margin');
+        spacing = GM_getValue('spacing');
         pageMargin = GM_getValue('pageMargin');
         pagePadding = GM_getValue('pagePadding');
         fullScreenMode = GM_getValue('fullScreenMode');
@@ -488,14 +529,20 @@
 
         if (isThumbnailMode) {
             adjustColumnsS();
-            modifyThumbnailSize();
+            modifyThumbnailSizeS();
         } else if (isGalleryPage) {
             adjustColumnsG();
+            modifyThumbnailSizeG();
         }
     }
 
     // 初始化设置 如果为空 先保存初始值
     function initialize() {
+        if (GM_getValue('zoomFactor') !== undefined && GM_getValue('zoomFactorS') === undefined) {
+            GM_setValue('zoomFactorS', GM_getValue('zoomFactor'));
+            GM_deleteValue('zoomFactor');
+        }
+
         for (const [key, defaultValue] of Object.entries(defaults)) {
             window[key] = GM_getValue(key, defaultValue);
 
@@ -511,9 +558,9 @@
 
     // 计算尺寸
     function calculateDimensions() {
-        columnWidthS = 250 * zoomFactor + margin * 2; // 每列的宽度 250-400 270
+        columnWidthS = 250 * zoomFactorS + margin * 2; // 每列的宽度 250-400 270
         columnWidthSb = columnWidthS + (2 / devicePixelRatio); // 加上缩略图边框，边框宽度受设备像素比影响
-        columnWidthG = 240; // 画廊每列的宽度
+        columnWidthG = 100 * zoomFactorG + spacing; // 画廊每列的宽度(100X) spacing:15  + (2 / devicePixelRatio)
         marginAdjustmentS = 14 + pageMargin * 2; // 页面边距调整值 body-padding:2 ido-padding:5
         marginAdjustmentG = 34 + pageMargin * 2; // 画廊页面边距调整值 body-padding:2 gdt-padding:15
         paddingAdjustmentS = pagePadding * 2; // 页面内边距调整值
@@ -611,45 +658,48 @@
     // 根据页面宽度动态调整列数 画廊页面
     function adjustColumnsG() {
         console.log('LOLICON 画廊页面调整');
-        const width = window.innerWidth;
-
-        let columnsG = Math.floor((width - marginAdjustmentG) / columnWidthG); // 减去边距，并计算列数
-        columnsG = Math.max(columnsG, 3);
-
-        let clientWidthG_gdt = 700 + (columnsG - 3) * columnWidthG;
-
-        if (fullScreenMode && columnsG >= 6) {
-            clientWidthG_gdt = width - marginAdjustmentG;
-        }
-
-        const isMulticolumn = columnsG >= 6;
-        if (c('gm')[0]) { c('gm')[0].style.maxWidth = isMulticolumn ? (clientWidthG_gdt + 20) + 'px' : ''; } // 设置最详情大宽度 720 960 1200
-        if (c('gm')[1]) { c('gm')[1].style.maxWidth = isMulticolumn ? (clientWidthG_gdt + 20) + 'px' : ''; } // 设置最评论区大宽度 720 960 1200
-        if ($('gd2')) { $('gd2').style.width = isMulticolumn ? (clientWidthG_gdt - 255) + 'px' : ''; } // 设置标题栏宽度 710 925
-        if ($('gmid')) { $('gmid').style.width = isMulticolumn ? (clientWidthG_gdt - 250) + 'px' : ''; } // 设置标签栏宽度 710 930
-        if ($('gd4')) { $('gd4').style.width = isMulticolumn ? (clientWidthG_gdt - 600) + 'px' : ''; } // 设置标签栏宽度 360 580
-        if ($('gdo')) { $('gdo').style.maxWidth = isMulticolumn ? (clientWidthG_gdt + 20) + 'px' : ''; } // 设置缩略图设置栏最大宽度 720 960 1200
 
         const gdt = $('gdt');
         if (gdt) {
-            if (columnsG < 6) {
-                const minWidthNumber = parseFloat(getComputedStyle(c('gm')[0]).maxWidth);
-                clientWidthG_gdt = minWidthNumber - 20;
-                columnsG = Math.floor(minWidthNumber / columnWidthG);
+
+            const width = window.innerWidth;
+            const isGT200 = gdt.classList.contains('gt200');
+            const pixelCorrection = 2 / devicePixelRatio;
+
+            const spacingCorrection = isGT200 ? spacing * 2 : spacing;
+            const columnWidthGL = isGT200 ? columnWidthG * 2 + pixelCorrection : columnWidthG + pixelCorrection;
+
+            const clientWidthGL = Math.max(700, width - marginAdjustmentG) + spacingCorrection;
+            const columnsG = Math.floor(clientWidthGL / columnWidthGL);
+            const clientWidthG_gdt = fullScreenMode ? Math.max(700, width - marginAdjustmentG) : Math.max(700, columnsG * columnWidthGL - spacingCorrection);
+
+            if (c('gm')[0]) { c('gm')[0].style.maxWidth = clientWidthG_gdt + 20 + 'px'; } // 设置最详情大宽度 720 960 1200
+            if (c('gm')[1]) { c('gm')[1].style.maxWidth = clientWidthG_gdt + 20 + 'px'; } // 设置最评论区大宽度 720 960 1200
+            if ($('gdo')) { $('gdo').style.maxWidth = clientWidthG_gdt + 20 + 'px'; } // 设置缩略图设置栏最大宽度 720 960 1200
+
+            let clientWidthG_gdt_gd2 = clientWidthG_gdt - 255 // 设置标题栏宽度 710 925
+            let clientWidthG_gdt_gmid = clientWidthG_gdt - 250 // 设置标签栏宽度 710 930
+            let clientWidthG_gdt_gd4 = clientWidthG_gdt - 600 // 设置标签栏宽度 360 580
+
+            if (width <= 1230) {
+                clientWidthG_gdt_gd2 = clientWidthG_gdt_gd2 + 255;
+                clientWidthG_gdt_gmid = clientWidthG_gdt_gmid + 255;
+                clientWidthG_gdt_gd4 = clientWidthG_gdt_gd4 + 255;
             }
+
+            if ($('gd2')) { $('gd2').style.width = clientWidthG_gdt_gd2 + 'px'; }
+            if ($('gmid')) { $('gmid').style.width = clientWidthG_gdt_gmid + 'px'; }
+            if ($('gd4')) { $('gd4').style.width = clientWidthG_gdt_gd4 + 'px'; }
+
 
             gdt.style.maxWidth = clientWidthG_gdt + 'px'; // 设置最大宽度 700 940 1180
-
-            if (gdt.classList.contains('gt100')) {
-                gdt.style.gridTemplateColumns = 'repeat(' + columnsG * 2 + ', 1fr)';
-            } else if (gdt.classList.contains('gt200')) {
-                gdt.style.gridTemplateColumns = 'repeat(' + columnsG + ', 1fr)';
-            }
+            gdt.style.gridTemplateColumns = 'repeat(' + columnsG + ', 1fr)';
+            gdt.style.gap = spacing + 'px';
         }
     }
 
     // 收集缩略图信息
-    function collectThumbnailData() {
+    function collectThumbnailDataS() {
         const gl1tElements = document.querySelectorAll('.gl1t');
 
         gl1tElements.forEach((gl1t, index) => {
@@ -680,11 +730,36 @@
                 });
             }
         });
-        // console.log('LOLICON thumbnailData', thumbnailData);
+    }
+
+    // 收集画廊缩略图信息
+    function collectThumbnailDataG() {
+        const gdt = $('gdt');
+        const gdtThumbs = gdt.querySelectorAll('a > div:nth-child(1) > div:nth-child(1)');
+        const gdtThumbPages = gdt.querySelectorAll('a > div:nth-child(1) > div:nth-child(2)');
+
+        gdtThumbs.forEach((el, index) => {
+            const style = getComputedStyle(el);
+            const backgroundPosition = style.backgroundPosition;
+            const backgroundImage = style.backgroundImage;
+
+            const width = el.clientWidth;
+            const height = el.clientHeight;
+            const pageEl = gdtThumbPages[index] ?? null;
+
+            thumbnailData.push({
+                el,
+                backgroundPosition,
+                backgroundImage,
+                width,
+                height,
+                pageEl,
+            });
+        });
     }
 
     // 修改缩略图大小
-    function modifyThumbnailSize() {
+    function modifyThumbnailSizeS() {
         console.log('LOLICON 修改缩略图大小');
 
         const minWidthNumber = parseFloat(getComputedStyle(c('ido')[0]).minWidth);
@@ -710,10 +785,10 @@
                 originalImgHeight
             } = data;
 
-            let zoomFactorL = zoomFactor;
+            let zoomFactorL = zoomFactorS;
 
             if (squareMode && originalWidth < 250) {
-                zoomFactorL = zoomFactor * 250 / originalWidth;
+                zoomFactorL = zoomFactorS * 250 / originalWidth;
             }
 
             // 设置 gl1t 的宽度
@@ -782,6 +857,48 @@
         });
     }
 
+    // 修改画廊缩略图大小
+    function modifyThumbnailSizeG() {
+        console.log('LOLICON 修改画廊缩略图大小');
+
+        const totalThumbs = thumbnailData.length;
+
+        thumbnailData.forEach((data, index) => {
+            const {
+                el,
+                backgroundPosition,
+                backgroundImage,
+                width,
+                height,
+                pageEl,
+            } = data;
+
+            const isSprite = backgroundImage.includes('hath.network');
+            const isJpg = backgroundImage.includes('.jpg');
+
+            el.style.width = width * zoomFactorG + 'px';
+            el.style.height = height * zoomFactorG + 'px';
+
+            const [x] = backgroundPosition.split(' ').map(parseFloat);
+            el.style.backgroundPosition = x * zoomFactorG + 'px 0px';
+
+            const isLarge = width > 100 || height > 150;
+            const itemWidth = isLarge ? 200 : 100;
+            const itemsPerSprite = (isLarge ? 20 : 40) / (isJpg ? 2 : 1);
+
+            pageEl.style.maxWidth = itemWidth * zoomFactorG + 'px';
+
+            const isLastSprite = index >= totalThumbs - (totalThumbs % itemsPerSprite || itemsPerSprite);
+            const itemsInThisSprite = isLastSprite ? (totalThumbs % itemsPerSprite || itemsPerSprite) : itemsPerSprite;
+            const spriteWidth = itemWidth * itemsInThisSprite * zoomFactorG;
+
+            if (isSprite) {
+                el.style.backgroundSize = spriteWidth + 'px auto';
+            } else {
+                el.style.backgroundSize = width * zoomFactorG + 'px auto';
+            }
+        });
+    }
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -808,8 +925,8 @@
                 nextContent.forEach(item => fragment.appendChild(item));
                 c('itg gld')[0].appendChild(fragment);
                 console.log('LOLICON 下一页内容已成功加载。');
-                collectThumbnailData();
-                modifyThumbnailSize();
+                collectThumbnailDataS();
+                modifyThumbnailSizeS();
 
                 if (liveURLUpdate && !isPopularPage && !isFavoritesPage) {
                     getTheLeftmostGl1t();
@@ -863,7 +980,6 @@
         }
 
         updateURLOnScroll();
-        // console.log('LOLICON elementPositions:', elementPositions);
     }
 
     let topMostElementURL;
@@ -888,7 +1004,6 @@
             urlObj.searchParams.set('next', newTopMostElementURL);
             window.history.replaceState(null, '', urlObj.toString());
             topMostElementURL = newTopMostElementURL;
-            // console.log('LOLICON 更新地址栏：',decodedUrl);
         }
     }
 
@@ -958,8 +1073,8 @@
         c('ido')[0].style.minWidth = '740px';
     }
     if (isThumbnailMode) {
-        collectThumbnailData();
-        modifyThumbnailSize();
+        collectThumbnailDataS();
+        modifyThumbnailSizeS();
         adjustColumnsS();
         monitorInfiniteScroll();
 
@@ -970,6 +1085,8 @@
             }
         });
     } else if (isGalleryPage) {
+        collectThumbnailDataG();
+        modifyThumbnailSizeG();
         adjustColumnsG();
         window.addEventListener('resize', adjustColumnsG);
     }
