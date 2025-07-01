@@ -6,7 +6,7 @@
 // @name:ko             LOLICON 와이드 Hentai
 // @name:ru             LOLICON Широкий Hentai
 // @namespace           https://greasyfork.org/scripts/516145
-// @version             2025.06.26
+// @version             2025.06.28
 // @description         Full width E-Hentai and Exhentai, dynamically adjusting the page width, also allows you to adjust the size and margins of the thumbnails, infinite scroll to automatically load the next page
 // @description:zh-CN   全屏宽度 E 绅士，动态调整页面宽度，同时支持调整缩略图大小和边距，无限滚动自动加载下一页
 // @description:zh-TW   全螢幕寬度 E 紳士，動態調整頁面寬度，並支援調整縮圖大小及邊距，無限滾動自動加載下一頁
@@ -857,6 +857,25 @@
         });
     }
 
+    // 获取雪碧图信息
+    function getSpriteTypeInfo(url) {
+        if (url.includes('.hath.network/c2/')) {
+            return { isSprite: true, itemWidth: 200, itemsPerSprite: 20 };
+        } else if (url.includes('.hath.network/c1/')) {
+            return { isSprite: true, itemWidth: 100, itemsPerSprite: 40 };
+        } else if (url.includes('.hath.network/cm/')) {
+            return { isSprite: true, itemWidth: 100, itemsPerSprite: 20 };
+        } else {
+            return { isSprite: false, itemWidth: 200, itemsPerSprite: 1 };
+        }
+        // 20210812开始更换缩略图
+        // 旧100x雪碧图2000px   20张    .hath.network/cm/*.jpg
+        // 旧200x缩略图200px    1张     ehgt.org/*.jpg
+        // 旧200x缩略图200px    1张     exhentai.org/*.jpg
+        // 新100x雪碧图4000px   40张    .hath.network/c1/*.webp
+        // 新200x雪碧图4000px   20张    .hath.network/c2/*.webp
+    }
+
     // 修改画廊缩略图大小
     function modifyThumbnailSizeG() {
         console.log('LOLICON 修改画廊缩略图大小');
@@ -873,28 +892,28 @@
                 pageEl,
             } = data;
 
-            const isSprite = backgroundImage.includes('hath.network');
-            const isJpg = backgroundImage.includes('.jpg');
+            // 获取雪碧图信息
+            const { isSprite, itemWidth, itemsPerSprite } = getSpriteTypeInfo(backgroundImage);
 
+            // 设置缩略图尺寸
             el.style.width = width * zoomFactorG + 'px';
             el.style.height = height * zoomFactorG + 'px';
 
+            // 背景图位置缩放
             const [x] = backgroundPosition.split(' ').map(parseFloat);
             el.style.backgroundPosition = x * zoomFactorG + 'px 0px';
 
-            const isLarge = width > 100 || height > 150;
-            const itemWidth = isLarge ? 200 : 100;
-            const itemsPerSprite = (isLarge ? 20 : 40) / (isJpg ? 2 : 1);
-
+            // 设置page最大宽度（便于居中）
             pageEl.style.maxWidth = itemWidth * zoomFactorG + 'px';
 
-            const isLastSprite = index >= totalThumbs - (totalThumbs % itemsPerSprite || itemsPerSprite);
-            const itemsInThisSprite = isLastSprite ? (totalThumbs % itemsPerSprite || itemsPerSprite) : itemsPerSprite;
-            const spriteWidth = itemWidth * itemsInThisSprite * zoomFactorG;
-
+            // 处理雪碧图尺寸
             if (isSprite) {
+                const isLastSprite = index >= totalThumbs - (totalThumbs % itemsPerSprite || itemsPerSprite);
+                const itemsInThisSprite = isLastSprite ? (totalThumbs % itemsPerSprite || itemsPerSprite) : itemsPerSprite;
+                const spriteWidth = itemWidth * itemsInThisSprite * zoomFactorG;
                 el.style.backgroundSize = spriteWidth + 'px auto';
             } else {
+                // 非雪碧图直接缩放原图
                 el.style.backgroundSize = width * zoomFactorG + 'px auto';
             }
         });
