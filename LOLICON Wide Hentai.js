@@ -6,10 +6,10 @@
 // @name:ko             LOLICON 와이드 Hentai
 // @name:ru             LOLICON Широкий Hentai
 // @namespace           https://greasyfork.org/scripts/516145
-// @version             2025.08.12
+// @version             2025.08.24
 // @description         Full width E-Hentai/Exhentai, adjustable thumbnails, quick favorites, infinite scroll
-// @description:zh-CN   全屏宽度E绅士，缩略图可调，快捷收藏，无限滚动
-// @description:zh-TW   全螢幕寬度E紳士，縮圖可調，快捷收藏，無限滾動
+// @description:zh-CN   全屏宽度E绅士，缩略图可调，快速收藏，无限滚动
+// @description:zh-TW   全螢幕寬度E紳士，縮圖可調，快速收藏，無限滾動
 // @description:ja      E-Hentai/Exhentai全画面、サムネ調整、クイックお気に入り、無限スクロール
 // @description:ko      E-Hentai/Exhentai 전체화면, 썸네일 조절, 빠른 즐겨찾기, 무한 스크롤
 // @description:ru      Полная ширина E-Hentai/Exhentai, настройка миниатюр, быстрые избранные, бесконечная прокрутка
@@ -32,28 +32,21 @@
     'use strict';
 
     /** 根据 id 获取对应的 DOM 元素 */
-    function $(id) { return document.getElementById(id); }
-
-    /** 根据类名获取所有匹配的 DOM 元素集合 */
-    function c(id) { return document.getElementsByClassName(id); }
+    const $i = (id) => document.getElementById(id);
+    /** 根据类名获取 DOM 集合 (HTMLCollection) */
+    const $c = (name) => document.getElementsByClassName(name);
+    /** querySelector 单个元素 */
+    const $ = (sel) => document.querySelector(sel);
+    /** querySelectorAll 多个元素 (NodeList) */
+    const $$ = (sel) => document.querySelectorAll(sel);
+    /** 创建元素 */
+    const $create = (tag) => document.createElement(tag);
 
     /** 获取当前设备的设备像素比（DPR）*/
     const devicePixelRatio = window.devicePixelRatio || 1;
 
-    /** 获取用户语言 */
-    const userLang = navigator.language || navigator.userLanguage;
-
-    let columnWidthS,
-        columnWidthSb,
-        columnWidthG,
-        marginAdjustmentS,
-        marginAdjustmentG,
-        paddingAdjustmentS,
-        columnsS,
-        OLDcolumnsS;
-
-    /** 搜索类别行 */
-    let initialTableRows = null;
+    /** 用于存储布局相关的动态数据 */
+    const layout = {};
 
     /** 页面项目信息 */
     let pageItemsData = [];
@@ -63,51 +56,47 @@
 
     /** 配置项 */
     const config = {
-        zoomFactorS: { step: 0.01, min: 0.5, max: 10 },
-        zoomFactorG: { step: 0.01, min: 0.5, max: 10 },
-        margin: { step: 1, min: 0, max: 100 },
-        spacing: { step: 1, min: 0, max: 100 },
-        pageMargin: { step: 1, min: 0, max: 1000 },
-        pagePadding: { step: 1, min: 0, max: 1000 },
+        zoomFactorS: { def: 1, step: 0.01, min: 0.5, max: 10 },
+        zoomFactorG: { def: 1, step: 0.01, min: 0.5, max: 10 },
+        margin: { def: 10, step: 1, min: 0, max: 100 },
+        spacing: { def: 15, step: 1, min: 0, max: 100 },
+        pageMargin: { def: 10, step: 1, min: 0, max: 1000 },
+        pagePadding: { def: 10, step: 1, min: 0, max: 1000 },
+        fullScreenMode: { def: false },
+        squareMode: { def: false },
+        showIndex: { def: false },
+        liveURLUpdate: { def: false },
+        quickFavorite: { def: true },
+        infiniteScroll: { def: false },
+        maxPagesS: { def: 0, step: 1, min: 0, max: 1000 },
+        moreThumbnail: { def: false },
+        maxPagesG: { def: 0, step: 1, min: 0, max: 1000 }
     };
 
-    /** 设置默认值 */
-    const defaults = {
-        zoomFactorS: 1,
-        zoomFactorG: 1,
-        margin: 10,
-        spacing: 15,
-        pageMargin: 10,
-        pagePadding: 10,
-        fullScreenMode: false,
-        squareMode: false,
-        quickFavorite: true,
-        infiniteScroll: false,
-        showIndex: false,
-        liveURLUpdate: false
+    /** 用于存储脚本的用户配置 */
+    const cfg = {};
+
+    /** cfg 从 GM_getValue 读取或写入默认值 */
+    Object.entries(config).forEach(([key, conf]) => {
+        let val = GM_getValue(key, conf.def);
+        if (val === undefined) {
+            GM_setValue(key, conf.def);
+            val = conf.def;
+        }
+        cfg[key] = val;
+    });
+
+    /** 当前网页信息 */
+    const pageInfo = {
+        originalUrl: window.location.href,
+        isExhentai: window.location.hostname.endsWith('exhentai.org'), // 判断是否是 ex变态
+        isTor: window.location.hostname.endsWith('exhentai55ld2wyap5juskbm67czulomrouspdacjamjeloj7ugjbsad.onion'), // 判断是否是 Tor
+        isGalleryPage: window.location.pathname.startsWith('/g/'), // /g/ 画廊页面
+        isWatchedPage: window.location.pathname.startsWith('/watched'), // /watched 订阅页面
+        isPopularPage: window.location.pathname.startsWith('/popular'), // /popular 热门页面
+        isFavoritesPage: window.location.pathname.startsWith('/favorites.php'), // /favorites 收藏夹页面
+        listDisplayMode: $('.searchnav div:last-child select')?.value // 获取当前列表的显示模式（m/p/l/e/t）
     };
-
-    let zoomFactorS = GM_getValue('zoomFactorS', defaults.zoomFactorS);
-    let zoomFactorG = GM_getValue('zoomFactorG', defaults.zoomFactorG);
-    let margin = GM_getValue('margin', defaults.margin);
-    let spacing = GM_getValue('spacing', defaults.spacing);
-    let pageMargin = GM_getValue('pageMargin', defaults.pageMargin);
-    let pagePadding = GM_getValue('pagePadding', defaults.pagePadding);
-    let fullScreenMode = GM_getValue('fullScreenMode', defaults.fullScreenMode);
-    let squareMode = GM_getValue('squareMode', defaults.squareMode);
-    let quickFavorite = GM_getValue('quickFavorite', defaults.quickFavorite);
-    let infiniteScroll = GM_getValue('infiniteScroll', defaults.infiniteScroll);
-    let showIndex = GM_getValue('showIndex', defaults.showIndex);
-    let liveURLUpdate = GM_getValue('liveURLUpdate', defaults.liveURLUpdate);
-
-    const originalUrl = window.location.href;
-
-    const isEXH = window.location.hostname.endsWith('exhentai.org'); // 判断是否是 ex变态
-    const isGalleryPage = window.location.pathname.startsWith('/g/'); // /g/ 画廊页面
-    const isWatchedPage = window.location.pathname.startsWith('/watched'); // /watched 订阅页面
-    const isPopularPage = window.location.pathname.startsWith('/popular'); // /popular 热门页面
-    const isFavoritesPage = window.location.pathname.startsWith('/favorites.php'); // /favorites 收藏夹页面
-    const displayMode = document.querySelector('.searchnav div:last-child select')?.value; // 获取当前列表的显示模式（m/p/l/e/t）
 
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
@@ -179,22 +168,6 @@
             'ko': '정사각형 썸네일',
             'ru': 'Квадратная миниатюра'
         },
-        'quickFavorite': {
-            'en': 'Quick Favorite',
-            'zh-CN': '快捷收藏',
-            'zh-TW': '快捷收藏',
-            'ja': 'クイックお気に入り',
-            'ko': '빠른 즐겨찾기',
-            'ru': 'Быстрое избранное'
-        },
-        'infiniteScroll': {
-            'en': 'Infinite Scroll',
-            'zh-CN': '无限滚动',
-            'zh-TW': '無限滾動',
-            'ja': '無限スクロール',
-            'ko': '무한 스크롤',
-            'ru': 'Бесконечная прокрутка',
-        },
         'showIndex': {
             'en': 'Show Index',
             'zh-CN': '显示序号',
@@ -211,6 +184,46 @@
             'ko': '실시간 URL 업데이트',
             'ru': 'Живое обновление URL',
         },
+        'quickFavorite': {
+            'en': 'Quick Favorite',
+            'zh-CN': '快速收藏',
+            'zh-TW': '快速收藏',
+            'ja': 'クイックお気に入り',
+            'ko': '빠른 즐겨찾기',
+            'ru': 'Быстрое избранное'
+        },
+        'infiniteScroll': {
+            'en': 'Infinite Scroll',
+            'zh-CN': '无限滚动',
+            'zh-TW': '無限滾動',
+            'ja': '無限スクロール',
+            'ko': '무한 스크롤',
+            'ru': 'Бесконечная прокрутка',
+        },
+        'maxPagesS': {
+            'en': 'Max Pages [0 = Unlimited]',
+            'zh-CN': '最大页数 [0 = 无限]',
+            'zh-TW': '最大頁數 [0 = 無限]',
+            'ja': '最大ページ数 [0 = 無制限]',
+            'ko': '최대 페이지 [0 = 무한]',
+            'ru': 'Макс. страниц [0 = Бесконечно]'
+        },
+        'moreThumbnail': {
+            'en': 'More Thumbnail',
+            'zh-CN': '更多缩略图',
+            'zh-TW': '更多縮圖',
+            'ja': 'もっとサムネイル',
+            'ko': '썸네일 더보기',
+            'ru': 'Ещё миниатюры'
+        },
+        'maxPagesG': {
+            'en': 'Max Pages [0 = Unlimited]',
+            'zh-CN': '最大页数 [0 = 无限]',
+            'zh-TW': '最大頁數 [0 = 無限]',
+            'ja': '最大ページ数 [0 = 無制限]',
+            'ko': '최대 페이지 [0 = 무한]',
+            'ru': 'Макс. страниц [0 = Бесконечно]'
+        },
         'settings': {
             'en': 'Settings',
             'zh-CN': '设置',
@@ -222,8 +235,8 @@
         'settingsPanel': {
             'en': 'Settings Panel',
             'zh-CN': '设置面板',
-            'zh-TW': '設置面板',
-            'ja': '設定パネル',
+            'zh-TW': '設定面板',
+            'ja': '設定画面',
             'ko': '설정 패널',
             'ru': 'Панель настроек'
         },
@@ -253,12 +266,12 @@
         }
     };
 
-    /** 模板 */
+    /** 输入报错模板 */
     const rangeTemplates = {
         'en': `Invalid {{label}}! Please enter a value between {{min}} and {{max}}. Default {{default}}.`,
-        'zh-CN': `{{label}}无效！请输入介于 {{min}} 和 {{max}} 之间的值。默认值为 {{default}}。`,
-        'zh-TW': `{{label}}無效！請輸入介於 {{min}} 和 {{max}} 之間的值。預設值為 {{default}}。`,
-        'ja': `{{label}}が無効です！{{min}}から{{max}}までの値を入力してください。デフォルトは{{default}}です。`,
+        'zh-CN': `{{label}} 无效！请输入介于 {{min}} 和 {{max}} 之间的值。默认值为 {{default}}。`,
+        'zh-TW': `{{label}} 無效！請輸入介於 {{min}} 和 {{max}} 之間的值。預設值為 {{default}}。`,
+        'ja': `{{label}} が無効です！{{min}}から{{max}}までの値を入力してください。デフォルトは{{default}}です。`,
         'ko': `잘못된 {{label}}! {{min}} 에서 {{max}} 사이의 값을 입력하세요. 기본값 {{default}}`,
         'ru': `Неверный {{label}}! Пожалуйста, введите значение от {{min}} до {{max}}. По умолчанию {{default}}`
     };
@@ -276,7 +289,7 @@
             if (match) {
                 const baseKey = match[1];
                 const labelEntry = target[baseKey];
-                if (!labelEntry || !config[baseKey] || !defaults[baseKey]) return undefined;
+                if (!labelEntry || !config[baseKey]) return undefined;
 
                 const output = {};
                 for (const lang of Object.keys(rangeTemplates)) {
@@ -284,7 +297,7 @@
                         label: labelEntry[lang],
                         min: config[baseKey].min,
                         max: config[baseKey].max,
-                        default: defaults[baseKey]
+                        default: config[baseKey].def
                     });
                 }
                 return output;
@@ -297,262 +310,219 @@
 
     /** 根据用户语言选择对应的文本 */
     const translate = (key) => {
+        const userLang = navigator.language || navigator.userLanguage;
         const lang = userLang.substring(0, 2);
+        const map = {
+            zh: userLang.startsWith('zh-TW') ? 'zh-TW' : 'zh-CN',
+            ja: 'ja',
+            ko: 'ko',
+            ru: 'ru'
+        };
+        const tKey = translations[key];
+        if (!tKey) return '';
 
-        switch (lang) {
-            case 'zh':
-                return translations[key][userLang.startsWith('zh-TW') ? 'zh-TW' : 'zh-CN'];
-            case 'ja':
-                return translations[key].ja;
-            case 'ko':
-                return translations[key].ko;
-            case 'ru':
-                return translations[key].ru;
-            default:
-                return translations[key].en;
-        }
+        return tKey[map[lang]] || tKey.en || key;
     };
+
+    /** 创建控件 HTML */
+    function createControlHTML(type, name, value, options = {}) {
+        if (type === 'input') {
+            const { step, min, max } = config[name];
+            return `<div style='margin-bottom: 10px; display: flex; align-items: center;'>
+            <label for='${name}Input' style='font-weight: bold; margin-right: 10px;'>${translate(name)} </label>
+            <input type='number' id='${name}Input' value='${value}' step='${step}' min='${min}' max='${max}' style='width: 46px; padding: 4px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; margin-left: auto;'>
+        </div>`;
+        } else if (type === 'checkbox') {
+            return `<div style='margin-bottom: 10px; display: flex; align-items: center;'>
+            <label for='${name}Input' style='font-weight: bold; margin-right: 10px;'>${translate(name)} </label>
+            <input type='checkbox' id='${name}Input' style='width: 20px; height: 20px; cursor: pointer; margin-left: auto;' ${value ? 'checked' : ''}>
+        </div>`;
+        } else if (type === 'buttons') {
+            return `<div style='display: flex; justify-content: space-between;'>
+            <button id='saveSettingsBtn' style='padding: 8px 12px; background-color: #00AAFF; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;'>${translate('save')}</button>
+            <button id='cancelSettingsBtn' style='padding: 8px 12px; background-color: #FF2222; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;'>${translate('cancel')}</button>
+        </div>`;
+        } else if (type === 'message') {
+            return `<div style='margin-top: 20px; margin-bottom: 20px; font-size: 16px; line-height: 2; font-weight: bold; text-align: center;'>${translate(name)}</div>`;
+        }
+    }
+
+    /** 获取面板内容 */
+    function getPanelContent() {
+        let controlNames = [];
+
+        if (pageInfo.listDisplayMode === 't') {
+            controlNames = [
+                'zoomFactorS', 'margin', 'pageMargin', 'pagePadding',
+                'fullScreenMode', 'squareMode', 'showIndex',
+                'infiniteScroll',
+                'quickFavorite', 'liveURLUpdate'
+            ];
+        } else if (pageInfo.listDisplayMode) {
+            controlNames = [
+                'pageMargin', 'pagePadding',
+                'fullScreenMode', 'showIndex',
+                'infiniteScroll',
+                'quickFavorite', 'liveURLUpdate'
+            ];
+        } else if ($i('searchbox')) {
+            controlNames = [
+                'pageMargin', 'pagePadding',
+                'fullScreenMode',
+            ];
+        } else if (pageInfo.isGalleryPage) {
+            controlNames = [
+                'zoomFactorG', 'spacing', 'pageMargin',
+                'fullScreenMode',
+                'moreThumbnail',
+                'quickFavorite'
+            ];
+        } else {
+            return createControlHTML('message', 'InvalidPage');
+        }
+
+        const htmlPieces = [];
+        controlNames.forEach(name => {
+            const type = typeof config[name].def === 'boolean' ? 'checkbox' : 'input';
+            htmlPieces.push(createControlHTML(type, name, cfg[name]));
+
+            if (name === 'infiniteScroll' && cfg.infiniteScroll) {
+                const maxPagesHTML = createControlHTML('input', 'maxPagesS', cfg.maxPagesS);
+                htmlPieces.push(maxPagesHTML.replace("style='", "style='margin-left: 24px; color: #666; "));
+            } else if (name === 'moreThumbnail' && cfg.moreThumbnail) {
+                const maxPagesHTML = createControlHTML('input', 'maxPagesG', cfg.maxPagesG);
+                htmlPieces.push(maxPagesHTML.replace("style='", "style='margin-left: 24px; color: #666; "));
+            }
+        });
+
+        return htmlPieces.join('');
+    }
 
     /** 创建和显示设置面板 */
     function showSettingsPanel() {
-        if ($('settings-panel')) return;
-
-        const panel = document.createElement('div');
+        if ($i('settings-panel')) return;
+        const panel = $create('div');
         panel.id = 'settings-panel';
-        panel.style.position = 'fixed';
-        panel.style.top = '24px';
-        panel.style.right = '24px';
-        panel.style.padding = '12px 12px';
-        panel.style.backgroundColor = 'rgba(255, 255, 255, 0.9)';
-        panel.style.border = '2px solid #00AAFF';
-        panel.style.borderRadius = '9px';
-        panel.style.boxShadow = '0 0 12px rgba(0,0,0,0.24)';
-        panel.style.zIndex = '999999';
-        panel.style.fontFamily = '"Segoe UI", Tahoma, Geneva, Verdana, sans-serif';
-        panel.style.fontSize = '12px';
-        panel.style.color = '#222';
-
-        if (displayMode === 't') {
-            panel.innerHTML = `
-            <h3 style='margin: 0; margin-bottom: 10px; font-size: 16px; color: #00AAFF; text-align: center;'>${translate('settingsPanel')}</h3>
-            ${createInputHTML('zoomFactorS', zoomFactorS, config.zoomFactorS.step, config.zoomFactorS.min, config.zoomFactorS.max)}
-            ${createInputHTML('margin', margin, config.margin.step, config.margin.min, config.margin.max)}
-            ${createInputHTML('pageMargin', pageMargin, config.pageMargin.step, config.pageMargin.min, config.pageMargin.max)}
-            ${createInputHTML('pagePadding', pagePadding, config.pagePadding.step, config.pagePadding.min, config.pagePadding.max)}
-            ${createCheckboxHTML('fullScreenMode', fullScreenMode === true)}
-            ${createCheckboxHTML('squareMode', squareMode === true)}
-            ${createCheckboxHTML('quickFavorite', quickFavorite === true)}
-            ${createCheckboxHTML('infiniteScroll', infiniteScroll === true)}
-            ${createCheckboxHTML('showIndex', showIndex === true)}
-            ${createCheckboxHTML('liveURLUpdate', liveURLUpdate === true)}
-            ${createButtonsHTML()}
+        panel.style = 'position: fixed; top: 24px; right: 24px; padding: 12px; background-color: rgba(255,255,255,0.9); border: 2px solid #00AAFF; border-radius: 9px; box-shadow: 0 0 12px rgba(0,0,0,0.24); z-index: 999999; font-size: 14px; color: #222; min-width: 160px;';
+        panel.innerHTML = `
+            <style>
+            #settings-panel input[type=number]::-webkit-outer-spin-button,
+            #settings-panel input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+            #settings-panel input[type=number]{-moz-appearance:textfield;}
+            </style>
+            <h3 style='margin: 0; margin-bottom: 10px; font-size: 18px; color: #00AAFF; text-align: center;'>${translate('settingsPanel')}</h3>
+            <div id='settings-controls'>${getPanelContent()}</div>
+            ${createControlHTML('buttons')}
         `;
-        } else if (displayMode) {
-            panel.innerHTML = `
-            <h3 style='margin: 0; margin-bottom: 10px; font-size: 16px; color: #00AAFF; text-align: center;'>${translate('settingsPanel')}</h3>
-            ${createInputHTML('pageMargin', pageMargin, config.pageMargin.step, config.pageMargin.min, config.pageMargin.max)}
-            ${createInputHTML('pagePadding', pagePadding, config.pagePadding.step, config.pagePadding.min, config.pagePadding.max)}
-            ${createCheckboxHTML('fullScreenMode', fullScreenMode === true)}
-            ${createCheckboxHTML('quickFavorite', quickFavorite === true)}
-            ${createCheckboxHTML('infiniteScroll', infiniteScroll === true)}
-            ${createCheckboxHTML('showIndex', showIndex === true)}
-            ${createCheckboxHTML('liveURLUpdate', liveURLUpdate === true)}
-            ${createButtonsHTML()}
-        `;
-        } else if (isGalleryPage) {
-            panel.innerHTML = `
-            <h3 style='margin: 0; margin-bottom: 10px; font-size: 16px; color: #00AAFF; text-align: center;'>${translate('settingsPanel')}</h3>
-            ${createInputHTML('zoomFactorG', zoomFactorG, config.zoomFactorG.step, config.zoomFactorG.min, config.zoomFactorG.max)}
-            ${createInputHTML('spacing', spacing, config.spacing.step, config.spacing.min, config.spacing.max)}
-            ${createInputHTML('pageMargin', pageMargin, config.pageMargin.step, config.pageMargin.min, config.pageMargin.max)}
-            ${createCheckboxHTML('fullScreenMode', fullScreenMode === true)}
-            ${createCheckboxHTML('quickFavorite', quickFavorite === true)}
-            ${createButtonsHTML()}
-        `;
-        } else {
-            panel.innerHTML = `
-            <h3 style='margin: 0; margin-bottom: 10px; font-size: 16px; color: #00AAFF; text-align: center;'>${translate('settingsPanel')}</h3>
-            <div style='margin-top: 20px; margin-bottom: 20px; font-size: 14px; line-height: 2; font-weight: bold; text-align: center; min-width: 160px;'>${translate('InvalidPage')}</div>
-            ${createButtonsHTML()}
-        `;
-        }
 
         document.body.appendChild(panel);
 
-        panel.addEventListener('wheel', (event) => {
-            event.preventDefault();
-            event.stopPropagation();
-        }, { passive: false });
-
-        bindInputEvents(panel);
-        bindButtons(panel);
-    }
-
-    /** 动态生成输入框HTML */
-    function createInputHTML(name, value, step, min, max) {
-        return `
-        <div style='margin-bottom: 10px; display: flex; align-items: center;'>
-            <label for='${name}Input' style='font-weight: bold; margin-right: 10px;'>${translate(name)} </label>
-            <input type='number' id='${name}Input' value='${value}' step='${step}' min='${min}' max='${max}' style='width: 60px; padding: 5px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; margin-left: auto;'>
-        </div>
-    `;
-    }
-
-    /** 动态生成复选框HTML */
-    function createCheckboxHTML(name, checked) {
-        return `
-        <div style='margin-bottom: 10px; display: flex; align-items: center;'>
-            <label for='${name}Input' style='font-weight: bold; margin-right: 10px;'>${translate(name)} </label>
-            <input type='checkbox' id='${name}Input' style='width: 30px; height: 20px; cursor: pointer; margin-left: auto;' ${checked ? 'checked' : ''}>
-        </div>
-    `;
-    }
-
-    /** 动态生成按钮HTML */
-    function createButtonsHTML() {
-        return `
-        <div style='display: flex; justify-content: space-between;'>
-            <button id='saveSettingsBtn' style='padding: 8px 12px; background-color: #00AAFF; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;'>${translate('save')}</button>
-            <button id='cancelSettingsBtn' style='padding: 8px 12px; background-color: #FF2222; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold;'>${translate('cancel')}</button>
-        </div>
-    `;
-    }
-
-    /** 绑定事件 */
-    function bindInputEvents(panel) {
-        panel.querySelectorAll('input[type="number"]').forEach(input => {
-            input.addEventListener('input', handleInputChange);
-            input.addEventListener('wheel', handleWheelChange);
+        // 面板整体的行为与按钮绑定
+        panel.addEventListener('wheel', e => { e.preventDefault(); e.stopPropagation(); }, { passive: false });
+        panel.addEventListener('input', e => {
+            if (e.target.type === 'number') handleInputChange(e);
+            if (e.target.type === 'checkbox') handleCheckboxChange(e);
         });
+        panel.addEventListener('wheel', handleWheelChange, { passive: false });
 
-        ['#fullScreenModeInput', '#squareModeInput', '#quickFavoriteInput', '#infiniteScrollInput', '#showIndexInput', '#liveURLUpdateInput'].forEach(selector => {
-            const input = panel.querySelector(selector);
-            if (input) {
-                input.addEventListener('change', handleCheckboxChange);
-            }
-        });
-    }
-
-    /** 绑定按钮 */
-    function bindButtons(panel) {
         panel.querySelectorAll('button').forEach(btn => {
-            btn.addEventListener('mouseover', function () { this.style.opacity = '0.8'; });
-            btn.addEventListener('mouseout', function () { this.style.opacity = '1'; });
+            btn.addEventListener('mouseover', () => { btn.style.opacity = '0.8'; });
+            btn.addEventListener('mouseout', () => { btn.style.opacity = '1'; });
         });
 
-        if (displayMode || isGalleryPage) {
-            panel.querySelector('#saveSettingsBtn').addEventListener('click', () => saveSettings(panel));
-            panel.querySelector('#cancelSettingsBtn').addEventListener('click', () => cancelSettings(panel));
+        const saveBtn = $i('saveSettingsBtn'), cancelBtn = $i('cancelSettingsBtn');
+        if (pageInfo.listDisplayMode || $i('searchbox') || pageInfo.isGalleryPage) {
+            saveBtn?.addEventListener('click', () => saveSettings(panel));
+            cancelBtn?.addEventListener('click', () => cancelSettings(panel));
         } else {
-            panel.querySelector('#saveSettingsBtn').addEventListener('click', () => panel.remove());
-            panel.querySelector('#cancelSettingsBtn').addEventListener('click', () => panel.remove());
+            saveBtn?.addEventListener('click', () => panel.remove());
+            cancelBtn?.addEventListener('click', () => panel.remove());
         }
+
+        // 暴露局部刷新函数，方便外部调用
+        panel.refreshControls = () => refreshSettingsControls(panel);
+    }
+
+    // ---- 局部刷新（只替换 #settings-controls 的 innerHTML，保留容器和已绑定的委托事件） ----
+    function refreshSettingsControls(panel) {
+        const container = panel.querySelector('#settings-controls');
+        if (!container) return;
+        container.innerHTML = getPanelContent();
+        // 不需要重新绑定事件，因为事件委托绑定在 container 元素上并不会被替换
+    }
+
+    /** 通用输入赋值函数 */
+    function setCfgByInput(id, value) {
+        const key = id.replace(/Input$/, '');
+        cfg[key] = value;
     }
 
     /** 输入框变化事件 */
     function handleInputChange(event) {
         const { id, value } = event.target;
         const numValue = parseFloat(value);
-
-        if (id.includes('zoomFactorS') && numValue >= config.zoomFactorS.min && numValue <= config.zoomFactorS.max) {
-            zoomFactorS = numValue;
-        } else if (id.includes('zoomFactorG') && numValue >= config.zoomFactorG.min && numValue <= config.zoomFactorG.max) {
-            zoomFactorG = numValue;
-        } else if (id.includes('margin') && numValue >= config.margin.min && numValue <= config.margin.max) {
-            margin = numValue;
-        } else if (id.includes('spacing') && numValue >= config.spacing.min && numValue <= config.spacing.max) {
-            spacing = numValue;
-        } else if (id.includes('pageMargin') && numValue >= config.pageMargin.min && numValue <= config.pageMargin.max) {
-            pageMargin = numValue;
-        } else if (id.includes('pagePadding') && numValue >= config.pagePadding.min && numValue <= config.pagePadding.max) {
-            pagePadding = numValue;
+        const key = id.replace(/Input$/, '');
+        if (
+            config[key] &&
+            numValue >= config[key].min &&
+            numValue <= config[key].max
+        ) {
+            setCfgByInput(id, numValue);
+            applyChanges();
         }
-
-        applyChanges();
-    }
-
-    /** 滚轮事件处理 */
-    function handleWheelChange(event) {
-        event.preventDefault();
-        const input = event.target;
-        let value = parseFloat(input.value);
-        const step = parseFloat(input.step);
-        const delta = event.deltaY < 0 ? step : -step;
-
-        value = Math.min(parseFloat(input.max), Math.max(parseFloat(input.min), value + delta));
-
-        if (step < 1) {
-            input.value = value.toFixed(2);
-        } else {
-            input.value = value;
-        }
-
-        input.dispatchEvent(new Event('input'));
     }
 
     /** 复选框变化事件 */
     function handleCheckboxChange(event) {
-        if (event.target.id === 'fullScreenModeInput') {
-            fullScreenMode = event.target.checked ? true : false;
-        } else if (event.target.id === 'squareModeInput') {
-            squareMode = event.target.checked ? true : false;
-        } else if (event.target.id === 'quickFavoriteInput') {
-            quickFavorite = event.target.checked ? true : false;
-        } else if (event.target.id === 'infiniteScrollInput') {
-            infiniteScroll = event.target.checked ? true : false;
-        } else if (event.target.id === 'showIndexInput') {
-            showIndex = event.target.checked ? true : false;
-        } else if (event.target.id === 'liveURLUpdateInput') {
-            liveURLUpdate = event.target.checked ? true : false;
-        }
-
+        const { id, checked } = event.target;
+        setCfgByInput(id, checked);
         applyChanges();
+
+        // 如果这个复选框和展示逻辑有关（例如 infiniteScroll），局部刷新控件
+        if (id === 'infiniteScrollInput' || id === 'moreThumbnailInput') {
+            const panel = document.getElementById('settings-panel');
+            if (panel && typeof panel.refreshControls === 'function') {
+                panel.refreshControls();
+            }
+        }
+    }
+
+    /** 滚轮事件处理 */
+    function handleWheelChange(event) {
+        if (event.target.type !== 'number') return;
+        event.preventDefault();
+        const input = event.target;
+        let value = parseFloat(input.value);
+        const step = parseFloat(input.step);
+        value = Math.min(parseFloat(input.max), Math.max(parseFloat(input.min), value + (event.deltaY < 0 ? step : -step)));
+        input.value = step < 1 ? value.toFixed(2) : value;
+        input.dispatchEvent(new InputEvent('input', { bubbles: true }));
     }
 
     /** 保存设置 */
     function saveSettings(panel) {
-        GM_setValue('fullScreenMode', fullScreenMode);
-        GM_setValue('squareMode', squareMode);
-        GM_setValue('quickFavorite', quickFavorite);
-        GM_setValue('infiniteScroll', infiniteScroll);
-        GM_setValue('showIndex', showIndex);
-        GM_setValue('liveURLUpdate', liveURLUpdate);
-
         let errors = [];
-        Object.entries(config).forEach(([settingKey, { min, max }]) => {
-            const input = panel.querySelector('#' + settingKey + 'Input');
-            if (input) {
-                const value = parseFloat(input.value);
-                if (isNaN(value) || value < min || value > max) {
-                    errors.push(translate(settingKey + 'Range'));
-                    return;
-                }
-                GM_setValue(settingKey, value);
+        panel.querySelectorAll('input[type="number"]').forEach(input => {
+            const key = input.id.replace('Input', '');
+            const value = parseFloat(input.value);
+            if (isNaN(value) || value < config[key].min || value > config[key].max) {
+                errors.push(translate(key + 'Range'));
             }
         });
-
         if (errors.length > 0) {
             alert(errors.join('\n\n'));
             return;
         }
+        // 无错误时保存所有设置
+        Object.keys(config).forEach(key => GM_setValue(key, cfg[key]));
         panel.remove();
     }
 
     /** 取消设置 */
     function cancelSettings(panel) {
-        zoomFactorS = GM_getValue('zoomFactorS');
-        zoomFactorG = GM_getValue('zoomFactorG');
-        margin = GM_getValue('margin');
-        spacing = GM_getValue('spacing');
-        pageMargin = GM_getValue('pageMargin');
-        pagePadding = GM_getValue('pagePadding');
-        fullScreenMode = GM_getValue('fullScreenMode');
-        squareMode = GM_getValue('squareMode');
-        quickFavorite = GM_getValue('quickFavorite');
-        infiniteScroll = GM_getValue('infiniteScroll');
-        showIndex = GM_getValue('showIndex');
-        liveURLUpdate = GM_getValue('liveURLUpdate');
-
+        Object.keys(config).forEach(key => {
+            cfg[key] = GM_getValue(key)
+        });
         applyChanges();
         panel.remove();
     }
@@ -560,28 +530,17 @@
     /** 应用更改 */
     function applyChanges() {
         calculateDimensions();
-
-        if (displayMode) {
-            adjustColumnsS();
-            if (displayMode === 't') {
-                modifyThumbnailSizeS();
-            }
+        if (pageInfo.listDisplayMode) {
+            throttledAdjustColumnsS();
+            if (pageInfo.listDisplayMode === 't') modifyThumbnailSizeS();
             updateGlinkIndex();
-            if (quickFavorite) {
-                initFavcat();
-                replaceFavClickS();
-            } else {
-                restoreElements();
-            }
-        } else if (isGalleryPage) {
-            adjustColumnsG();
+            cfg.quickFavorite ? (initFavcat(), replaceFavClickS()) : restoreElements();
+        } else if ($i('searchbox')) {
+            throttledAdjustColumnsS();
+        } else if (pageInfo.isGalleryPage) {
+            throttledAdjustColumnsG();
             modifyThumbnailSizeG();
-            if (quickFavorite) {
-                initFavcat();
-                replaceFavClickG();
-            } else {
-                restoreElements();
-            }
+            cfg.quickFavorite ? (initFavcat(), replaceFavClickG()) : restoreElements();
         }
     }
 
@@ -592,12 +551,13 @@
             GM_deleteValue('zoomFactor');
         }
 
-        for (const [key, defaultValue] of Object.entries(defaults)) {
-            window[key] = GM_getValue(key, defaultValue);
-
-            if (GM_getValue(key) === undefined) {
-                GM_setValue(key, defaultValue);
+        for (const [key, cfgItem] of Object.entries(config)) {
+            let val = GM_getValue(key);
+            if (val === undefined) {
+                GM_setValue(key, cfgItem.def);
+                val = cfgItem.def;
             }
+            cfg[key] = val;
         }
     }
 
@@ -607,40 +567,43 @@
 
     /** 计算尺寸 */
     function calculateDimensions() {
-        columnWidthS = 250 * zoomFactorS + margin * 2; // 每列的宽度 250-400 270
-        columnWidthSb = columnWidthS + (2 / devicePixelRatio); // 加上缩略图边框，边框宽度受设备像素比影响
-        columnWidthG = 100 * zoomFactorG + spacing; // 画廊每列的宽度(100X) spacing:15  + (2 / devicePixelRatio)
-        marginAdjustmentS = 14 + pageMargin * 2; // 页面边距调整值 body-padding:2 ido-padding:5
-        marginAdjustmentG = 34 + pageMargin * 2; // 画廊页面边距调整值 body-padding:2 gdt-padding:15
-        paddingAdjustmentS = pagePadding * 2; // 页面内边距调整值
+        layout.columnWidthS = 250 * cfg.zoomFactorS + cfg.margin * 2; // 每列的宽度 250-400 270
+        layout.columnWidthSb = layout.columnWidthS + (2 / devicePixelRatio); // 加上缩略图边框，边框宽度受设备像素比影响
+        layout.columnWidthG = 100 * cfg.zoomFactorG + cfg.spacing; // 画廊每列的宽度(100X) spacing:15  + (2 / devicePixelRatio)
+        layout.marginAdjustmentS = 14 + cfg.pageMargin * 2; // 页面边距调整值 body-padding:2 ido-padding:5
+        layout.marginAdjustmentG = 34 + cfg.pageMargin * 2; // 画廊页面边距调整值 body-padding:2 gdt-padding:15
+        layout.paddingAdjustmentS = cfg.pagePadding * 2; // 页面内边距调整值
     }
 
-    /** 根据页面宽度动态调整列数 非画廊页面 */
+    /** 搜索类别行 */
+    let initialTableRows = null;
+
+    /** 根据页面宽度动态调整列数 画廊列表页面 */
     function adjustColumnsS() {
-        console.log('LOLICON 非画廊页面调整');
+        console.log('LOLICON 画廊列表页面调整');
 
         const width = document.documentElement.clientWidth; // window.innerWidth
-        const minWidthNumber = parseFloat(getComputedStyle(c('ido')[0]).minWidth);
+        const minWidthNumber = parseFloat(getComputedStyle($c('ido')[0]).minWidth);
 
-        let clientWidthS_itg = Math.max(width - marginAdjustmentS - paddingAdjustmentS, minWidthNumber); // 计算宽度
-        columnsS = Math.max(Math.floor(clientWidthS_itg / columnWidthSb), 1); // 计算列数
-        const baseWidth = (displayMode === 't') ? columnsS * columnWidthSb : Math.min(720 + 670 + 14, clientWidthS_itg);
-        clientWidthS_itg = Math.max(baseWidth, fullScreenMode ? clientWidthS_itg : minWidthNumber); // 根据全屏模式调整
+        let clientWidthS_itg = Math.max(width - layout.marginAdjustmentS - layout.paddingAdjustmentS, minWidthNumber); // 计算宽度
+        layout.columnsS = Math.max(Math.floor(clientWidthS_itg / layout.columnWidthSb), 1); // 计算列数
+        const baseWidth = (pageInfo.listDisplayMode === 't') ? layout.columnsS * layout.columnWidthSb : Math.min(720 + 670 + 14, clientWidthS_itg);
+        clientWidthS_itg = Math.max(baseWidth, cfg.fullScreenMode ? clientWidthS_itg : minWidthNumber); // 根据全屏模式调整
 
-        let clientWidthS_ido = Math.min(clientWidthS_itg + paddingAdjustmentS, width);
-        c('ido')[0].style.maxWidth = clientWidthS_ido + 'px'; // 设置最大宽度 1370
-        if (displayMode === 't') {
-            c('itg gld')[0].style.gridTemplateColumns = 'repeat(' + columnsS + ', 1fr)'; // 设置列数
-            c('itg gld')[0].style.width = clientWidthS_itg + 'px'; // 设置边距 '99%'
-        } else {
-            c('itg')[0].style.maxWidth = clientWidthS_itg + 'px';
-            c('itg')[0].style.width = clientWidthS_itg + 'px';
+        let clientWidthS_ido = Math.min(clientWidthS_itg + layout.paddingAdjustmentS, width);
+        $c('ido')[0].style.maxWidth = clientWidthS_ido + 'px'; // 设置最大宽度 1370
+        if (pageInfo.listDisplayMode === 't' && $c('itg gld')[0]) {
+            $c('itg gld')[0].style.gridTemplateColumns = 'repeat(' + layout.columnsS + ', 1fr)'; // 设置列数
+            $c('itg gld')[0].style.width = clientWidthS_itg + 'px'; // 设置边距 '99%'
+        } else if ($c('itg')[0]) {
+            $c('itg')[0].style.maxWidth = clientWidthS_itg + 'px';
+            $c('itg')[0].style.width = clientWidthS_itg + 'px';
         }
 
-        const searchnavEls = c('searchnav');
-        const paddingValue = (width - marginAdjustmentS - paddingAdjustmentS >= minWidthNumber)
-            ? pagePadding
-            : (width - minWidthNumber - marginAdjustmentS) / 2;
+        const searchnavEls = $c('searchnav');
+        const paddingValue = (width - layout.marginAdjustmentS - layout.paddingAdjustmentS >= minWidthNumber)
+            ? cfg.pagePadding
+            : (width - minWidthNumber - layout.marginAdjustmentS) / 2;
         for (let i = 0; i < 2; i++) {
             const el = searchnavEls[i];
             if (!el) continue;
@@ -648,7 +611,7 @@
             el.children[6].style.padding = '0 ' + paddingValue + 'px 0 0';
         }
 
-        const searchbox = $('searchbox'); // 搜索盒子
+        const searchbox = $i('searchbox'); // 搜索盒子
         if (searchbox) {
             const tbody = searchbox.querySelector('tbody');
             if (tbody) {
@@ -656,7 +619,7 @@
                 if (!initialTableRows) {
                     initialTableRows = tbody.innerHTML;
                 }
-                if (clientWidthS_ido >= 720 + 670 + 14 + paddingAdjustmentS) { //1460
+                if (clientWidthS_ido >= 720 + 670 + 14 + layout.paddingAdjustmentS) { //1460
                     // 合并搜索类别行
                     const rows = tbody.querySelectorAll('tr');
                     if (rows.length >= 2) {
@@ -675,22 +638,22 @@
             }
 
             // 调整搜索盒子大小
-            const isLargerWidth = clientWidthS_ido >= 720 + 670 + 14 + paddingAdjustmentS; //1460
-            if (c('idi')[0]) { c('idi')[0].style.width = (isLargerWidth ? 720 + 670 : 720) + 'px'; }
-            if (c('idi')[1]) { c('idi')[1].style.width = (isLargerWidth ? 720 + 670 : 720) + 'px'; }
-            if ($('f_search')) { $('f_search').style.width = (isLargerWidth ? 560 + 670 : 560) + 'px'; }
+            const isLargerWidth = clientWidthS_ido >= 720 + 670 + 14 + layout.paddingAdjustmentS; //1460
+            if ($c('idi')[0]) { $c('idi')[0].style.width = (isLargerWidth ? 720 + 670 : 720) + 'px'; }
+            if ($c('idi')[1]) { $c('idi')[1].style.width = (isLargerWidth ? 720 + 670 : 720) + 'px'; }
+            if ($i('f_search')) { $i('f_search').style.width = (isLargerWidth ? 560 + 670 : 560) + 'px'; }
         }
 
         // 调整更窄的收藏页面，和首页保持一致
-        if (isFavoritesPage && clientWidthS_ido < (930 + paddingAdjustmentS)) {
+        if (pageInfo.isFavoritesPage && clientWidthS_ido < (930 + layout.paddingAdjustmentS)) {
             const noselWidth = Math.max(735, Math.min(825, clientWidthS_ido));
-            if (c('nosel')[1]) { c('nosel')[1].style.width = noselWidth + 'px'; }
-            const fpElements = document.querySelectorAll('div.fp');
+            if ($c('nosel')[1]) { $c('nosel')[1].style.width = noselWidth + 'px'; }
+            const fpElements = $$('div.fp');
             const fpWidth = Math.max(142, Math.min(160, (clientWidthS_ido - 16) / 5 - 1)) + 'px';
             for (let i = 0; i < Math.min(10, fpElements.length); i++) {
                 fpElements[i].style.width = fpWidth;
             }
-            const idoTarget = document.querySelector('.ido > div:nth-child(3)');
+            const idoTarget = $('.ido > div:nth-child(3)');
             if (idoTarget) {
                 idoTarget.style.width = noselWidth + 'px';
                 const inputTarget = idoTarget.querySelector('form:nth-child(1) > div:nth-child(2) > input:nth-child(1)');
@@ -698,13 +661,13 @@
                     inputTarget.setAttribute('size', Math.max(84, Math.min(90, 84 + (noselWidth - 735) / 15)));
                 }
             }
-        } else if (isFavoritesPage) {
-            if (c('nosel')[1]) { c('nosel')[1].style.width = '825px'; }
-            const fpElements = document.querySelectorAll('div.fp');
+        } else if (pageInfo.isFavoritesPage) {
+            if ($c('nosel')[1]) { $c('nosel')[1].style.width = '825px'; }
+            const fpElements = $$('div.fp');
             for (let i = 0; i < Math.min(10, fpElements.length); i++) {
                 fpElements[i].style.width = '160px';
             }
-            const idoTarget = document.querySelector('.ido > div:nth-child(3)');
+            const idoTarget = $('.ido > div:nth-child(3)');
             if (idoTarget) {
                 idoTarget.style.width = '825px';
                 const inputTarget = idoTarget.querySelector('form:nth-child(1) > div:nth-child(2) > input:nth-child(1)');
@@ -714,9 +677,9 @@
             }
         }
 
-        if (columnsS != OLDcolumnsS && liveURLUpdate && !isPopularPage && !isFavoritesPage) {
-            throttledgetRowInfo();
-            OLDcolumnsS = columnsS;
+        if (layout.columnsS != layout.OLDcolumnsS && cfg.liveURLUpdate && !pageInfo.isPopularPage && !pageInfo.isFavoritesPage) {
+            throttledGetRowInfo();
+            layout.OLDcolumnsS = layout.columnsS;
         }
     }
 
@@ -724,23 +687,23 @@
     function adjustColumnsG() {
         console.log('LOLICON 画廊页面调整');
 
-        const gdt = $('gdt');
+        const gdt = $i('gdt');
         if (gdt) {
 
             const width = window.innerWidth;
             const isGT200 = gdt.classList.contains('gt200');
             const pixelCorrection = 2 / devicePixelRatio;
 
-            const spacingCorrection = isGT200 ? spacing * 2 : spacing;
-            const columnWidthGL = isGT200 ? columnWidthG * 2 + pixelCorrection : columnWidthG + pixelCorrection;
+            const spacingCorrection = isGT200 ? cfg.spacing * 2 : cfg.spacing;
+            const columnWidthGL = isGT200 ? layout.columnWidthG * 2 + pixelCorrection : layout.columnWidthG + pixelCorrection;
 
-            const clientWidthGL = Math.max(700, width - marginAdjustmentG) + spacingCorrection;
+            const clientWidthGL = Math.max(700, width - layout.marginAdjustmentG) + spacingCorrection;
             const columnsG = Math.floor(clientWidthGL / columnWidthGL);
-            const clientWidthG_gdt = fullScreenMode ? Math.max(700, width - marginAdjustmentG) : Math.max(700, columnsG * columnWidthGL - spacingCorrection);
+            const clientWidthG_gdt = cfg.fullScreenMode ? Math.max(700, width - layout.marginAdjustmentG) : Math.max(700, columnsG * columnWidthGL - spacingCorrection);
 
-            if (c('gm')[0]) { c('gm')[0].style.maxWidth = clientWidthG_gdt + 20 + 'px'; } // 设置最详情大宽度 720 960 1200
-            if (c('gm')[1]) { c('gm')[1].style.maxWidth = clientWidthG_gdt + 20 + 'px'; } // 设置最评论区大宽度 720 960 1200
-            if ($('gdo')) { $('gdo').style.maxWidth = clientWidthG_gdt + 20 + 'px'; } // 设置缩略图设置栏最大宽度 720 960 1200
+            if ($c('gm')[0]) { $c('gm')[0].style.maxWidth = clientWidthG_gdt + 20 + 'px'; } // 设置最详情大宽度 720 960 1200
+            if ($c('gm')[1]) { $c('gm')[1].style.maxWidth = clientWidthG_gdt + 20 + 'px'; } // 设置最评论区大宽度 720 960 1200
+            if ($i('gdo')) { $i('gdo').style.maxWidth = clientWidthG_gdt + 20 + 'px'; } // 设置缩略图设置栏最大宽度 720 960 1200
 
             let clientWidthG_gdt_gd2 = clientWidthG_gdt - 255; // 设置标题栏宽度 710 925
             let clientWidthG_gdt_gmid = clientWidthG_gdt - 250; // 设置标签栏宽度 710 930
@@ -752,35 +715,46 @@
                 clientWidthG_gdt_gd4 = clientWidthG_gdt_gd4 + 255;
             }
 
-            if ($('gd2')) { $('gd2').style.width = clientWidthG_gdt_gd2 + 'px'; }
-            if ($('gmid')) { $('gmid').style.width = clientWidthG_gdt_gmid + 'px'; }
-            if ($('gd4')) { $('gd4').style.width = clientWidthG_gdt_gd4 + 'px'; }
+            if ($i('gd2')) { $i('gd2').style.width = clientWidthG_gdt_gd2 + 'px'; }
+            if ($i('gmid')) { $i('gmid').style.width = clientWidthG_gdt_gmid + 'px'; }
+            if ($i('gd4')) { $i('gd4').style.width = clientWidthG_gdt_gd4 + 'px'; }
 
 
             gdt.style.maxWidth = clientWidthG_gdt + 'px'; // 设置最大宽度 700 940 1180
             gdt.style.gridTemplateColumns = 'repeat(' + columnsG + ', 1fr)';
-            gdt.style.gap = spacing + 'px';
+            gdt.style.gap = cfg.spacing + 'px';
         }
     }
 
-    /** 收集非画廊页面信息 */
+    /** 收集画廊列表页面信息 */
     function collectDataS() {
-        if (displayMode === 't') {
-            const gElements = document.querySelectorAll('.gl1t');
-            gElements.forEach((gl1t, index) => {
+        const strategies = {
+            m: 'td:nth-child(4) > a:nth-child(1)',
+            p: 'td:nth-child(4) > a:nth-child(1)',
+            l: 'td:nth-child(3) > a:nth-child(1)',
+            e: 'td:nth-child(1) > div:nth-child(1) > a:nth-child(1)',
+            t: 'a:nth-child(1)'
+        };
+        if (pageInfo.listDisplayMode === 't') {
+            const gElements = $$('.gl1t');
+            gElements.forEach((el, index) => {
                 if (index === pageItemsIndex) {
                     pageItemsIndex++;
 
-                    const gl3t = gl1t.querySelector('.gl3t');
-                    const gl4t = gl1t.querySelector('.gl4t');
-                    const gl5t = gl1t.querySelector('.gl5t');
-                    const gl6t = gl1t.querySelector('.gl6t');
-                    const glink = gl1t.querySelector('.glink');
+                    const gl3t = el.querySelector('.gl3t');
+                    const gl4t = el.querySelector('.gl4t');
+                    const gl5t = el.querySelector('.gl5t');
+                    const gl6t = el.querySelector('.gl6t');
+                    const glink = el.querySelector('.glink');
                     const gl5tFirstChildDiv = gl5t?.querySelector('div:nth-child(1)');
                     const img = gl3t?.querySelector('img');
 
+                    const urlElement = el.querySelector(strategies[pageInfo.listDisplayMode]);
+                    const match = urlElement?.href.match(/\/g\/(\d+)\//);
+                    const gid = match ? Number(match[1]) : null;
+
                     pageItemsData.push({
-                        gl1t,
+                        el,
                         gl3t,
                         gl4t,
                         gl5t,
@@ -788,6 +762,7 @@
                         glink,
                         gl5tFirstChildDiv,
                         img,
+                        gid,
                         originalWidth: gl3t?.clientWidth,
                         originalHeight: gl3t?.clientHeight,
                         originalImgWidth: img?.clientWidth,
@@ -796,16 +771,22 @@
                 }
             });
         } else {
-            const gElements = document.querySelectorAll('.itg > tbody > tr');
-            gElements.forEach((tr, index) => {
+            const gElements = $$('.itg > tbody > tr');
+            gElements.forEach((el, index) => {
                 if (index === pageItemsIndex) {
                     pageItemsIndex++;
 
-                    if (tr.querySelector('td.itd')) return; // 跳过广告行
-                    const glink = tr.querySelector('.glink');
+                    if (el.querySelector('td.itd')) return; // 跳过广告行
+                    const glink = el.querySelector('.glink');
+
+                    const urlElement = el.querySelector(strategies[pageInfo.listDisplayMode]);
+                    const match = urlElement?.href.match(/\/g\/(\d+)\//);
+                    const gid = match ? Number(match[1]) : null;
+
                     pageItemsData.push({
-                        tr,
+                        el,
                         glink,
+                        gid,
                     });
                 }
             });
@@ -814,44 +795,64 @@
 
     /** 收集画廊页面信息 */
     function collectDataG() {
-        const gdt = $('gdt');
+        const gdt = $i('gdt');
         const gdtThumbs = gdt.querySelectorAll('a > div:nth-child(1) > div:nth-child(1)');
         const gdtThumbPages = gdt.querySelectorAll('a > div:nth-child(1) > div:nth-child(2)');
 
+        const spriteCountMap = new Map(); // 记录每张背景图出现次数
+
         gdtThumbs.forEach((el, index) => {
-            const style = getComputedStyle(el);
-            const backgroundPosition = style.backgroundPosition;
-            const backgroundImage = style.backgroundImage;
+            if (index === pageItemsIndex) {
+                pageItemsIndex++;
 
-            const width = el.clientWidth;
-            const height = el.clientHeight;
-            const pageEl = gdtThumbPages[index] ?? null;
+                const style = getComputedStyle(el);
+                const backgroundPosition = style.backgroundPosition;
+                const backgroundImage = style.backgroundImage;
 
-            pageItemsData.push({
-                el,
-                backgroundPosition,
-                backgroundImage,
-                width,
-                height,
-                pageEl,
-            });
+                const spriteIndex = (spriteCountMap.get(backgroundImage) || 0) + 1;
+                spriteCountMap.set(backgroundImage, spriteIndex);
+
+                const width = el.clientWidth;
+                const height = el.clientHeight;
+                const itemWidth = (width === 200 || height === 300) ? 200 : 100;
+
+                const pageEl = gdtThumbPages[index] ?? null;
+
+                pageItemsData.push({
+                    el,
+                    backgroundPosition,
+                    backgroundImage,
+                    spriteIndex,
+                    itemsPerSprite: null,
+                    width,
+                    height,
+                    itemWidth,
+                    pageEl,
+                });
+            }
+        });
+
+        pageItemsData.forEach(data => {
+            if (data.itemsPerSprite == null) {
+                data.itemsPerSprite = spriteCountMap.get(data.backgroundImage) || 1;
+            }
         });
     }
 
-    /** 修改缩略图大小 */
+    /** 修改画廊列表缩略图大小 */
     function modifyThumbnailSizeS() {
         console.log('LOLICON 修改缩略图大小');
 
-        const minWidthNumber = parseFloat(getComputedStyle(c('ido')[0]).minWidth);
-        let columnWidthSbm = Math.max(columnWidthSb, minWidthNumber / Math.floor(Math.max(minWidthNumber / columnWidthSb, 1)));
+        const minWidthNumber = parseFloat(getComputedStyle($c('ido')[0]).minWidth);
+        let columnWidthSbm = Math.max(layout.columnWidthSb, minWidthNumber / Math.floor(Math.max(minWidthNumber / layout.columnWidthSb, 1)));
 
-        if (fullScreenMode) {
-            columnWidthSbm = columnWidthS * 2;
+        if (cfg.fullScreenMode) {
+            columnWidthSbm = layout.columnWidthS * 2;
         }
 
         pageItemsData.forEach((data, index) => {
             const {
-                gl1t,
+                el,
                 gl3t,
                 gl4t,
                 gl5t,
@@ -859,33 +860,34 @@
                 glink,
                 gl5tFirstChildDiv,
                 img,
+                gid,
                 originalWidth,
                 originalHeight,
                 originalImgWidth,
                 originalImgHeight
             } = data;
 
-            let zoomFactorL = zoomFactorS;
+            let zoomFactorL = cfg.zoomFactorS;
 
-            if (squareMode && originalWidth < 250) {
-                zoomFactorL = zoomFactorS * 250 / originalWidth;
+            if (cfg.squareMode && originalWidth < 250) {
+                zoomFactorL = cfg.zoomFactorS * 250 / originalWidth;
             }
 
             // 设置 gl1t 的宽度
-            gl1t.style.minWidth = columnWidthS + 'px';
-            gl1t.style.maxWidth = columnWidthSbm + 'px';
+            el.style.minWidth = layout.columnWidthS + 'px';
+            el.style.maxWidth = columnWidthSbm + 'px';
 
             // 调整 gl3t 的宽高
             if (gl3t) {
                 const newWidth = originalWidth * zoomFactorL;
                 const newHeight = originalHeight * zoomFactorL;
                 gl3t.style.width = newWidth + 'px';
-                gl3t.style.height = (squareMode ? newWidth : newHeight) + 'px';
+                gl3t.style.height = (cfg.squareMode ? newWidth : newHeight) + 'px';
             }
 
             // 小列宽时处理 gl5t 换行逻辑
             if (gl5t) {
-                const isSmallWidth = columnWidthS <= 199;
+                const isSmallWidth = layout.columnWidthS <= 199;
                 gl5t.style.flexWrap = isSmallWidth ? 'wrap' : '';
                 gl5t.style.height = isSmallWidth ? '92px' : '';
 
@@ -901,7 +903,7 @@
                 let top = '';
                 let left = '';
 
-                if (squareMode) {
+                if (cfg.squareMode) {
                     if (newImgWidth <= newImgHeight) {
                         top = ((originalWidth * zoomFactorL) - newImgHeight) / 2 + 'px';
                     } else {
@@ -931,11 +933,11 @@
             if (glink) {
                 const glinkSpan = glink.querySelector('span[data-LOLICON-index="true"]');
 
-                if (showIndex) {
+                if (cfg.showIndex) {
                     if (!glinkSpan) {
-                        const span = document.createElement('span');
+                        const span = $create('span');
                         span.setAttribute('data-LOLICON-index', 'true');
-                        if (displayMode === 't' || displayMode === 'e') {
+                        if (pageInfo.listDisplayMode === 't' || pageInfo.listDisplayMode === 'e') {
                             span.textContent = `【${index + 1}】 `;
                         } else {
                             span.textContent = `【${index}】 `;
@@ -949,71 +951,49 @@
         });
     }
 
-    /** 获取雪碧图信息 */
-    function getSpriteTypeInfo(url) {
-        if (url.includes('.hath.network/c2/')) {
-            return { isSprite: true, itemWidth: 200, itemsPerSprite: 20 };
-        } else if (url.includes('.hath.network/c1/')) {
-            return { isSprite: true, itemWidth: 100, itemsPerSprite: 40 };
-        } else if (url.includes('.hath.network/cm/')) {
-            return { isSprite: true, itemWidth: 100, itemsPerSprite: 20 };
-        } else {
-            return { isSprite: false, itemWidth: 200, itemsPerSprite: 1 };
-        }
-        // 20210812开始更换缩略图
-        // 旧100x雪碧图2000px   20张    .hath.network/cm/*.jpg
-        // 旧200x缩略图200px    1张     ehgt.org/*.jpg
-        // 旧200x缩略图200px    1张     exhentai.org/*.jpg
-        // 新100x雪碧图4000px   40张    .hath.network/c1/*.webp
-        // 新200x雪碧图4000px   20张    .hath.network/c2/*.webp
-    }
-
     /** 修改画廊缩略图大小 */
     function modifyThumbnailSizeG() {
         console.log('LOLICON 修改画廊缩略图大小');
 
-        const totalThumbs = pageItemsData.length;
+        const isSprite = pageItemsData[0].itemsPerSprite !== 1 && pageItemsData.length > 1;
 
         pageItemsData.forEach((data, index) => {
             const {
                 el,
                 backgroundPosition,
                 backgroundImage,
+                spriteIndex,
+                itemsPerSprite,
                 width,
                 height,
-                pageEl,
+                itemWidth,
+                pageEl
             } = data;
 
-            // 获取雪碧图信息
-            const { isSprite, itemWidth, itemsPerSprite } = getSpriteTypeInfo(backgroundImage);
-
             // 设置缩略图尺寸
-            el.style.width = width * zoomFactorG + 'px';
-            el.style.height = height * zoomFactorG + 'px';
+            el.style.width = width * cfg.zoomFactorG + 'px';
+            el.style.height = height * cfg.zoomFactorG + 'px';
 
             // 背景图位置缩放
             const [x] = backgroundPosition.split(' ').map(parseFloat);
-            el.style.backgroundPosition = x * zoomFactorG + 'px 0px';
+            el.style.backgroundPosition = x * cfg.zoomFactorG + 'px 0px';
 
             // 设置page最大宽度（便于居中）
-            pageEl.style.maxWidth = itemWidth * zoomFactorG + 'px';
+            pageEl.style.maxWidth = itemWidth * cfg.zoomFactorG + 'px';
 
             // 处理雪碧图尺寸
             if (isSprite) {
-                const isLastSprite = index >= totalThumbs - (totalThumbs % itemsPerSprite || itemsPerSprite);
-                const itemsInThisSprite = isLastSprite ? (totalThumbs % itemsPerSprite || itemsPerSprite) : itemsPerSprite;
-                const spriteWidth = itemWidth * itemsInThisSprite * zoomFactorG;
-                el.style.backgroundSize = spriteWidth + 'px auto';
+                el.style.backgroundSize = itemWidth * itemsPerSprite * cfg.zoomFactorG + 'px auto';
             } else {
                 // 非雪碧图直接缩放原图
-                el.style.backgroundSize = width * zoomFactorG + 'px auto';
+                el.style.backgroundSize = width * cfg.zoomFactorG + 'px auto';
             }
         });
     }
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-    /** 颜色映射表，用于给不同收藏分类分配颜色 */
+    /** 颜色映射表，用于给不同收藏夹分配颜色 */
     const COLOR_MAP = {
         0: '#cccccc', 1: '#ff8080', 2: '#ffaa55', 3: '#ffff00', 4: '#80ff80',
         5: '#aaff55', 6: '#00ffff', 7: '#aaaaff', 8: '#cc80ff', 9: '#ff80cc'
@@ -1024,7 +1004,7 @@
         5: 'rgb(153, 255, 68)', 6: 'rgb(68, 187, 255)', 7: 'rgb(0, 0, 255)', 8: 'rgb(85, 0, 136)', 9: 'rgb(238, 136, 238)'
     };
 
-    /** 异步获取收藏分类名称列表 */
+    /** 异步获取收藏夹名称列表 */
     const getFavcatList = async () => {
         let names = [];
         try {
@@ -1033,7 +1013,7 @@
                 names = [...html.matchAll(/input type="text" name="favorite_\d" value="(.*?)"/g)].map(m => m[1]);
             }
             else if (location.pathname === '/gallerypopups.php') {
-                const nosel = document.querySelector('.nosel');
+                const nosel = $('.nosel');
                 if (nosel) {
                     names = [...nosel.querySelectorAll('div[style*="cursor:pointer"]')]
                         .map(div => div.querySelector('div[style*="padding-top"]').textContent.trim());
@@ -1045,21 +1025,22 @@
                 names = [...html.matchAll(/input type="text" name="favorite_\d" value="(.*?)"/g)].map(m => m[1]);
             }
         } catch (error) {
-            console.error('LOLICON 获取收藏分类名称列表时发生错误：', error);
+            console.error('LOLICON 获取收藏夹名称列表时发生错误：', error);
         }
         return names;
     };
 
+    /** 收藏夹名称 */
     let favcat = [];
 
-    /** 异步函数：更新收藏分类名称 */
+    /** 异步函数：更新收藏夹名称 */
     async function updateFavcat() {
         favcat = await getFavcatList();
         localStorage.favcat = JSON.stringify(favcat);
-        console.log('LOLICON 更新收藏分类名称', favcat);
+        console.log('LOLICON 更新收藏夹名称', favcat);
     }
 
-    /** 异步函数：初始化收藏分类列表 */
+    /** 异步函数：初始化收藏夹列表 */
     async function initFavcat() {
         if (['/uconfig.php', '/gallerypopups.php'].includes(location.pathname)) {
             await updateFavcat();
@@ -1070,7 +1051,7 @@
         }
     }
 
-    /** 异步函数：发送收藏或取消收藏请求 // url: 请求地址 // add: true为收藏，false为取消收藏 // favcat: 收藏分类编号 */
+    /** 异步函数：发送收藏或取消收藏请求 // url: 请求地址 // add: true为收藏，false为取消收藏 // favcat: 收藏夹编号 */
     const fetchFav = async (url, add, favcat) => {
         try {
             // 发送POST请求，提交收藏/取消收藏参数
@@ -1102,7 +1083,7 @@
     /** 显示收藏菜单 // anchorEl: 触发菜单的锚元素，用于定位菜单位置 // favUrl: 收藏请求URL */
     function showFavMenu(anchorEl, favUrl) {
         // 移除已有的收藏菜单，避免重复显示
-        const existingMenu = document.querySelector('.fav_popup_menu');
+        const existingMenu = $('.fav_popup_menu');
         if (existingMenu) existingMenu.remove();
 
         // 判断是否显示“取消收藏”菜单项
@@ -1116,7 +1097,7 @@
         };
 
         // 创建菜单容器并设置基础样式
-        const menu = document.createElement('div');
+        const menu = $create('div');
         menu.className = 'fav_popup_menu';
         menu.style.position = 'absolute';
         menu.style.background = 'rgba(0, 0, 0, 0.8)';
@@ -1134,7 +1115,7 @@
 
         // 创建菜单项的辅助函数
         function createMenuItem(text, color, onClick, options = {}) {
-            const item = document.createElement('div');
+            const item = $create('div');
             item.textContent = text;
             item.style.padding = '6px';
             item.style.cursor = 'pointer';
@@ -1163,7 +1144,7 @@
             return item;
         }
 
-        // 添加收藏分类菜单项
+        // 添加收藏夹菜单项
         favcat.forEach((name, idx) => {
             const item = createMenuItem(name, COLOR_MAP[idx] || '#fff', () => {
                 fetchFav(favUrl, true, idx).then(() => {
@@ -1178,7 +1159,7 @@
         });
 
         // 添加“取消收藏”和“收藏弹窗”同一行按钮
-        const actionRow = document.createElement('div');
+        const actionRow = $create('div');
         actionRow.style.display = 'flex';
 
         // 左侧：收藏弹窗
@@ -1204,10 +1185,10 @@
         const rect = anchorEl.getBoundingClientRect();
         const menuHeight = menu.offsetHeight;
         let left = window.scrollX + rect.left;
-        let top = window.scrollY + rect.top - menuHeight;
-
-        if (top < window.scrollY) {
-            top = window.scrollY + rect.bottom;
+        const scrollY = window.scrollY;
+        let top = scrollY + rect.top - menuHeight;
+        if (top < scrollY) {
+            top = scrollY + rect.bottom;
         }
 
         menu.style.left = left + 'px';
@@ -1292,9 +1273,9 @@
             el.removeEventListener('mouseenter', onMouseEnter);
             el.removeEventListener('mouseleave', onMouseLeave);
 
-            if (displayMode) {
+            if (pageInfo.listDisplayMode) {
 
-            } else if (isGalleryPage) {
+            } else if (pageInfo.isGalleryPage) {
                 el.removeAttribute('style');
                 // 设置 gdf 内部 div#fav div.i 的 margin-left 为 0
                 const iconDiv = el.querySelector('div#fav div.i');
@@ -1320,20 +1301,20 @@
     function bindHoverEffect(el) {
         function onMouseEnter() {
             let color = '#000000';
-            if (isEXH) { color = '#ffffff'; }
-            if (displayMode) {
+            if (pageInfo.isExhentai || pageInfo.isTor) { color = '#ffffff'; }
+            if (pageInfo.listDisplayMode) {
                 if (el.style.backgroundColor) return;
                 el.style.borderColor = color;
-            } else if (isGalleryPage) {
+            } else if (pageInfo.isGalleryPage) {
                 el.style.backgroundColor = color + '24';
                 el.style.boxShadow = 'inset 0 0 0 2px' + color + '12';
             }
         }
         function onMouseLeave() {
-            if (displayMode) {
+            if (pageInfo.listDisplayMode) {
                 if (el.style.backgroundColor) return;
                 el.style.borderColor = '';
-            } else if (isGalleryPage) {
+            } else if (pageInfo.isGalleryPage) {
                 el.style.backgroundColor = '';
                 el.style.boxShadow = '';
             }
@@ -1354,7 +1335,7 @@
 
     /** 给列表页中的元素替换点击事件，启用收藏菜单 */
     function replaceFavClickS() {
-        if (!displayMode) return;
+        if (!pageInfo.listDisplayMode) return;
 
         // 不同显示模式对应的选择器，选出需要绑定收藏功能的元素
         const strategies = {
@@ -1366,7 +1347,7 @@
         };
 
         // 遍历所有匹配元素
-        document.querySelectorAll(strategies[displayMode]).forEach(el => {
+        $$(strategies[pageInfo.listDisplayMode]).forEach(el => {
             if (!el.onclick) return; // 无onclick则跳过
 
             bindHoverEffect(el);
@@ -1386,8 +1367,7 @@
         const favUrl = `${location.origin}/gallerypopups.php?gid=${matchGallery[1]}&t=${matchGallery[2]}&act=addfav`;
 
         // 获取画廊按钮容器元素
-        const gdf = document.querySelector('#gdf');
-        if (!gdf) return;
+        const gdf = $i('gdf');
 
         // 调整按钮容器样式，使内容居中且无左边距，设定固定高度和半透明背景
         gdf.style.paddingTop = '0';
@@ -1418,119 +1398,129 @@
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+    /** 加载下一页的状态 */
+    const nextPage = {
+        isLoading: false,
+        nextPageLink: null,
+        loadedCount: 1
+    }
 
-    let isLoading = false; // 防止重复加载
-    let nextPageLink = document.querySelector('#dnext')?.href; // 初始化下一页链接
-    let hasMorePages = !!nextPageLink; // 检查是否还有更多页面
+    /** 获取下一页链接 */
+    function getNextPageLink(doc) {
+        if (pageInfo.listDisplayMode) {
+            nextPage.nextPageLink = doc.querySelector('#dnext')?.href;
+            if (nextPage.nextPageLink) {
+                $i('unext').href = nextPage.nextPageLink;
+                $i('dnext').href = nextPage.nextPageLink;
+            }
+        } else if (pageInfo.isGalleryPage) {
+            nextPage.nextPageLink = doc.querySelector('.ptb tr:first-child td:last-child a')?.href;
+            if (nextPage.nextPageLink) {
+                $('.ptt tr:first-child td:last-child a').href = nextPage.nextPageLink;
+                $('.ptb tr:first-child td:last-child a').href = nextPage.nextPageLink;
+            }
+        }
+    }
 
     /** 无限滚动加载下一页 */
     async function loadNextPage() {
-        if (isLoading || !hasMorePages) return;
+        if (nextPage.isLoading || !nextPage.nextPageLink) return;
 
-        isLoading = true;
+        nextPage.isLoading = true;
         try {
-            console.log('LOLICON 加载下一页：', nextPageLink);
-            const response = await fetch(nextPageLink);
+            console.log('LOLICON 加载下一页：', nextPage.nextPageLink);
+            const response = await fetch(nextPage.nextPageLink);
             const html = await response.text();
             const parser = new DOMParser();
-            const doc = parser.parseFromString(html, 'text/html');
+            const fetchedDoc = parser.parseFromString(html, 'text/html');
             let nextContent;
-            if (displayMode === 't') {
-                nextContent = doc.querySelectorAll('.gl1t');
-            } else {
-                nextContent = doc.querySelectorAll('.itg > tbody > tr');
+            if (pageInfo.listDisplayMode === 't') {
+                nextContent = fetchedDoc.querySelectorAll('.gl1t');
+            } else if (pageInfo.listDisplayMode) {
+                nextContent = fetchedDoc.querySelectorAll('.itg > tbody > tr');
+            } else if (pageInfo.isGalleryPage) {
+                nextContent = fetchedDoc.querySelectorAll('#gdt > a');
             }
 
             if (nextContent.length > 0) {
                 const fragment = document.createDocumentFragment();
                 nextContent.forEach((item, index) => {
-                    if (displayMode === 't' || displayMode === 'e' || index > 0) {
+                    if (pageInfo.listDisplayMode === 't' || pageInfo.listDisplayMode === 'e' || pageInfo.isGalleryPage || index > 0) {
                         fragment.appendChild(item);
                     }
                 });
 
-                if (displayMode === 't') {
-                    c('itg gld')[0].appendChild(fragment);
-                } else {
-                    document.querySelector('.itg > tbody').appendChild(fragment);
+                if (pageInfo.listDisplayMode === 't') {
+                    $c('itg gld')[0].appendChild(fragment);
+                } else if (pageInfo.listDisplayMode) {
+                    $('.itg > tbody').appendChild(fragment);
+                } else if (pageInfo.isGalleryPage) {
+                    $i('gdt').appendChild(fragment);
                 }
 
+                nextPage.loadedCount++;
                 console.log('LOLICON 下一页内容已成功加载。');
-                collectDataS();
-                if (displayMode === 't') {
-                    modifyThumbnailSizeS();
-                }
-                updateGlinkIndex();
-                if (quickFavorite) {
-                    replaceFavClickS();
+                if (pageInfo.listDisplayMode) {
+                    collectDataS();
+                    if (pageInfo.listDisplayMode === 't') modifyThumbnailSizeS();
+                    updateGlinkIndex();
+                    if (cfg.quickFavorite) replaceFavClickS();
+                    if (cfg.liveURLUpdate && !pageInfo.isPopularPage && !pageInfo.isFavoritesPage) {
+                        throttledGetRowInfo();
+                    }
+                } else if (pageInfo.isGalleryPage) {
+                    collectDataG();
+                    modifyThumbnailSizeG();
+                    throttledAdjustColumnsG();
                 }
 
-                if (liveURLUpdate && !isPopularPage && !isFavoritesPage) {
-                    getRowInfo();
-                }
             } else {
                 console.log('LOLICON 未找到下一页的内容，停止加载。');
-                hasMorePages = false;
             }
 
-            nextPageLink = doc.querySelector('#dnext')?.href;
-            hasMorePages = !!nextPageLink;
+            getNextPageLink(fetchedDoc);
 
-            if (hasMorePages) {
-                console.log('LOLICON 下一页链接已更新为：', nextPageLink);
+            if (nextPage.nextPageLink) {
+                console.log('LOLICON 下一页链接已更新为：', nextPage.nextPageLink);
             } else {
                 console.log('LOLICON 已是最后一页');
             }
+
         } catch (error) {
             console.error('LOLICON 加载下一页时发生错误：', error);
         } finally {
-            isLoading = false;
+            nextPage.isLoading = false;
         }
 
-        if (document.body.offsetHeight <= window.innerHeight) {
-            loadNextPage();
+        if (pageInfo.listDisplayMode && document.body.offsetHeight <= window.innerHeight) {
+            throttledLoadNextPage();
+        } else if (pageInfo.isGalleryPage && $i('gdt').getBoundingClientRect().bottom <= window.innerHeight) {
+            throttledLoadNextPage();
         }
     }
 
+    /** 元素位置 */
     let elementPositions = [];
 
     /** 获取行信息 */
     function getRowInfo() {
-        const strategies = {
-            m: 'td:nth-child(4) > a:nth-child(1)',
-            p: 'td:nth-child(4) > a:nth-child(1)',
-            l: 'td:nth-child(3) > a:nth-child(1)',
-            e: 'td:nth-child(1) > div:nth-child(1) > a:nth-child(1)',
-            t: 'a:nth-child(1)'
-        };
         elementPositions = [];
         const scrollY = window.scrollY;
-        let gElements;
-        if (displayMode === 't') {
-            gElements = document.querySelectorAll('.gl1t');
-        } else {
-            gElements = document.querySelectorAll('.itg > tbody > tr');
-        }
-        const startIndex = (displayMode === 't' || displayMode === 'e') ? 0 : 1;
-        for (let i = startIndex; i < pageItemsIndex; i++) {
-            if (displayMode !== 't' || i % columnsS === 0) {
-                const el = gElements[i];
-                if (el) {
-                    const rect = el.getBoundingClientRect();
-                    const urlElement = el.querySelector(strategies[displayMode]);
-                    if (!urlElement) continue;
-                    const match = urlElement.href.match(/\/g\/(\d+)\//);
+        const startIndex = (pageInfo.listDisplayMode === 't' || pageInfo.listDisplayMode === 'e') ? 0 : 1;
+        const step = (pageInfo.listDisplayMode === 't') ? layout.columnsS : 1;
 
-                    elementPositions.push({
-                        bottom: rect.bottom + scrollY,
-                        url: Number(match[1]) + 1,
-                    });
-                }
-            }
+        for (let i = startIndex; i < pageItemsIndex; i += step) {
+            const el = pageItemsData[i].el;
+            elementPositions.push({
+                bottom: el.getBoundingClientRect().bottom + scrollY,
+                url: pageItemsData[i].gid + 1,
+            });
         }
+
         updateURLOnScroll();
     }
 
+    /** 最顶部元素的 URL */
     let topMostElementURL;
 
     /** 更新地址栏 */
@@ -1547,7 +1537,7 @@
         }
 
         if (newTopMostElementURL != topMostElementURL) {
-            let urlObj = new URL(originalUrl);
+            let urlObj = new URL(pageInfo.originalUrl);
             urlObj.searchParams.delete('jump');
             urlObj.searchParams.delete('seek');
             urlObj.searchParams.set('next', newTopMostElementURL);
@@ -1592,24 +1582,53 @@
         };
     }
 
+    /** 更新画廊列表页宽-节流 */
+    const throttledAdjustColumnsS = throttle(adjustColumnsS, 60);
+    /** 更新画廊页宽-节流 */
+    const throttledAdjustColumnsG = throttle(adjustColumnsG, 60);
     /** 更新地址栏-节流 */
-    const throttledUpdateURLOnScroll = throttle(updateURLOnScroll, 240);
+    const throttledUpdateURLOnScroll = throttle(updateURLOnScroll, 60);
     /** 获取行信息-节流 */
-    const throttledgetRowInfo = throttle(getRowInfo, 600);
+    const throttledGetRowInfo = throttle(getRowInfo, 240);
+    /** 加载下一页-节流 */
+    const throttledLoadNextPage = throttle(loadNextPage, 600);
 
     /** 监控无限滚动 */
     function monitorInfiniteScroll() {
         const observer = new IntersectionObserver(([entry]) => {
-            if (entry.isIntersecting && infiniteScroll) {
-                loadNextPage();
+            if (entry.isIntersecting && cfg.infiniteScroll) {
+                if (cfg.maxPagesS != 0 && nextPage.loadedCount >= cfg.maxPagesS) {
+                    console.log('LOLICON 已达到最大页数限制: ', nextPage.loadedCount, ' >= ', cfg.maxPagesS);
+                    return
+                }
+                throttledLoadNextPage();
             }
         });
 
-        const bottomElement = document.createElement('div');
+        const bottomElement = $create('div');
         bottomElement.classList.add('LOLICON-infinite-scroll-trigger');
         document.body.appendChild(bottomElement);
 
         observer.observe(bottomElement);
+    }
+
+    /** 监控更缩略图 */
+    function monitorMoreThumbnail() {
+        const observer = new IntersectionObserver(([entry]) => {
+            if (entry.isIntersecting && cfg.moreThumbnail) {
+                if (cfg.maxPagesG != 0 && nextPage.loadedCount >= cfg.maxPagesG) {
+                    console.log('LOLICON 已达到最大页数限制: ', nextPage.loadedCount, ' >= ', cfg.maxPagesG);
+                    return
+                }
+                throttledLoadNextPage();
+            }
+        });
+
+        const trigger = $create('div');
+        trigger.id = 'LOLICON-more-thumbnail-trigger';
+        $i('gdt').after(trigger);
+
+        observer.observe(trigger);
     }
 
     console.log('LOLICON 开始');
@@ -1621,44 +1640,52 @@
     initialize();
     calculateDimensions();
 
-    // 收藏页面设置
-    if (isFavoritesPage) {
-        c('ido')[0].style.minWidth = '740px';
+    // 收藏页面修改
+    if (pageInfo.isFavoritesPage) {
+        $c('ido')[0].style.minWidth = '740px';
     }
 
-    // 初始化收藏分类
-    if (quickFavorite) {
+    // 初始化收藏夹
+    if (cfg.quickFavorite) {
         initFavcat();
     }
 
-    if (displayMode) {
+    if (pageInfo.listDisplayMode) {
         collectDataS();
 
-        if (displayMode === 't') {
+        if (pageInfo.listDisplayMode === 't') {
             modifyThumbnailSizeS();
         }
         adjustColumnsS();
         updateGlinkIndex();
+
+        getNextPageLink(document);
         monitorInfiniteScroll();
 
-        if (quickFavorite) {
+        if (cfg.quickFavorite) {
             replaceFavClickS();
         }
-        window.addEventListener('resize', adjustColumnsS);
+        window.addEventListener('resize', throttledAdjustColumnsS);
         window.addEventListener('scroll', () => {
-            if (liveURLUpdate && !isPopularPage && !isFavoritesPage) {
+            if (cfg.liveURLUpdate && !pageInfo.isPopularPage && !pageInfo.isFavoritesPage) {
                 throttledUpdateURLOnScroll();
             }
         });
-    } else if (isGalleryPage) {
+    } else if ($i('searchbox')) {
+        adjustColumnsS();
+        window.addEventListener('resize', throttledAdjustColumnsS);
+    } else if (pageInfo.isGalleryPage) {
         collectDataG();
         modifyThumbnailSizeG();
         adjustColumnsG();
 
-        if (quickFavorite) {
+        getNextPageLink(document);
+        monitorMoreThumbnail()
+
+        if (cfg.quickFavorite) {
             replaceFavClickG();
         }
-        window.addEventListener('resize', adjustColumnsG);
+        window.addEventListener('resize', throttledAdjustColumnsG);
     }
 
 })();
