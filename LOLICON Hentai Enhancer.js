@@ -1,18 +1,18 @@
 // ==UserScript==
-// @name                LOLICON Wide Hentai
-// @name:zh-CN          LOLICON 宽屏E绅士
-// @name:zh-TW          LOLICON 寬屏E紳士
-// @name:ja             LOLICON ワイド Hentai
-// @name:ko             LOLICON 와이드 Hentai
-// @name:ru             LOLICON Широкий Hentai
+// @name                LOLICON Hentai Enhancer
+// @name:zh-CN          LOLICON Hentai 增强器
+// @name:zh-TW          LOLICON Hentai 增強器
+// @name:ja             LOLICON Hentai 強化版
+// @name:ko             LOLICON Hentai 향상기
+// @name:ru             LOLICON Hentai Улучшатель
 // @namespace           https://greasyfork.org/scripts/516145
-// @version             2025.08.24
-// @description         Full width E-Hentai/Exhentai, adjustable thumbnails, quick favorites, infinite scroll
-// @description:zh-CN   全屏宽度E绅士，缩略图可调，快速收藏，无限滚动
-// @description:zh-TW   全螢幕寬度E紳士，縮圖可調，快速收藏，無限滾動
-// @description:ja      E-Hentai/Exhentai全画面、サムネ調整、クイックお気に入り、無限スクロール
-// @description:ko      E-Hentai/Exhentai 전체화면, 썸네일 조절, 빠른 즐겨찾기, 무한 스크롤
-// @description:ru      Полная ширина E-Hentai/Exhentai, настройка миниатюр, быстрые избранные, бесконечная прокрутка
+// @version             2025.09.16
+// @description         E-Hentai/ExHentai Auto Window Adaptation, Adjustable Thumbnails (size/margin), Quick Favorite, Infinite Scroll, Load More Thumbnails
+// @description:zh-CN   E-Hentai/ExHentai 自动适配窗口尺寸、缩略图调整（大小/间距）、快速收藏、无限滚动、加载更多缩略图
+// @description:zh-TW   E-Hentai/ExHentai 自動適配視窗尺寸、縮圖調整（大小/間距）、快速收藏、無限滾動、加載更多縮圖
+// @description:ja      E-Hentai/ExHentai ウィンドウ自動適応、サムネイルサイズ・間隔調整、クイックお気に入り、無限スクロール、サムネイル追加読み込み
+// @description:ko      E-Hentai/ExHentai 자동 창 크기 조절, 썸네일 크기/간격 조절, 빠른 즐겨찾기, 무한 스크롤, 썸네일 더보기
+// @description:ru      E-Hentai/ExHentai Автоматическая подгонка окна, Настройка миниатюр (размер/отступ), Быстрое добавление в избранное, Бесконечная прокрутка, Загрузка дополнительных миниатюр
 // @icon                https://e-hentai.org/favicon.ico
 // @match               *://e-hentai.org/*
 // @match               *://exhentai.org/*
@@ -70,17 +70,17 @@
         infiniteScroll: { def: false },
         maxPagesS: { def: 0, step: 1, min: 0, max: 1000 },
         moreThumbnail: { def: false },
-        maxPagesG: { def: 0, step: 1, min: 0, max: 1000 }
+        maxPagesG: { def: 0， step: 1, min: 0, max: 1000 }
     };
 
     /** 用于存储脚本的用户配置 */
     const cfg = {};
 
     /** cfg 从 GM_getValue 读取或写入默认值 */
-    Object.entries(config).forEach(([key, conf]) => {
-        let val = GM_getValue(key, conf.def);
+    Object。entries(config)。forEach(([key, conf]) => {
+        let val = GM_getValue(key， conf.def);
         if (val === undefined) {
-            GM_setValue(key, conf.def);
+            GM_setValue(key， conf.def);
             val = conf.def;
         }
         cfg[key] = val;
@@ -88,11 +88,11 @@
 
     /** 当前网页信息 */
     const pageInfo = {
-        originalUrl: window.location.href,
-        isExhentai: window.location.hostname.endsWith('exhentai.org'), // 判断是否是 ex变态
-        isTor: window.location.hostname.endsWith('exhentai55ld2wyap5juskbm67czulomrouspdacjamjeloj7ugjbsad.onion'), // 判断是否是 Tor
+        originalUrl: window。location.href,
+        isExhentai: window。location。hostname.endsWith('exhentai.org'), // 判断是否是 ex变态
+        isTor: window.location.hostname.endsWith('exhentai55ld2wyap5juskbm67czulomrouspdacjamjeloj7ugjbsad.onion')， // 判断是否是 Tor
         isGalleryPage: window.location.pathname.startsWith('/g/'), // /g/ 画廊页面
-        isWatchedPage: window.location.pathname.startsWith('/watched'), // /watched 订阅页面
+        isWatchedPage: window.location.pathname。startsWith('/watched'), // /watched 订阅页面
         isPopularPage: window.location.pathname.startsWith('/popular'), // /popular 热门页面
         isFavoritesPage: window.location.pathname.startsWith('/favorites.php'), // /favorites 收藏夹页面
         listDisplayMode: $('.searchnav div:last-child select')?.value // 获取当前列表的显示模式（m/p/l/e/t）
@@ -135,10 +135,10 @@
             'ja': 'サムネイル間隔',
             'ko': '썸네일 간격',
             'ru': 'Интервал миниатюр'
-        },
+        }，
         'pageMargin': {
             'en': 'Page Margin',
-            'zh-CN': '页面外边距',
+            'zh-CN': '页面外边距'，
             'zh-TW': '頁面外邊距',
             'ja': 'ページマージン',
             'ko': '페이지 외부 여백',
@@ -583,18 +583,18 @@
         console.log('LOLICON 画廊列表页面调整');
 
         const width = document.documentElement.clientWidth; // window.innerWidth
-        const minWidthNumber = parseFloat(getComputedStyle($c('ido')[0]).minWidth);
+        const minWidthNumber = parseFloat(getComputedStyle($c('ido')[0])。minWidth);
 
         let clientWidthS_itg = Math.max(width - layout.marginAdjustmentS - layout.paddingAdjustmentS, minWidthNumber); // 计算宽度
         layout.columnsS = Math.max(Math.floor(clientWidthS_itg / layout.columnWidthSb), 1); // 计算列数
-        const baseWidth = (pageInfo.listDisplayMode === 't') ? layout.columnsS * layout.columnWidthSb : Math.min(720 + 670 + 14, clientWidthS_itg);
+        const baseWidth = (pageInfo。listDisplayMode === 't') ? layout.columnsS * layout.columnWidthSb : Math.min(720 + 670 + 14, clientWidthS_itg);
         clientWidthS_itg = Math.max(baseWidth, cfg.fullScreenMode ? clientWidthS_itg : minWidthNumber); // 根据全屏模式调整
 
         let clientWidthS_ido = Math.min(clientWidthS_itg + layout.paddingAdjustmentS, width);
-        $c('ido')[0].style.maxWidth = clientWidthS_ido + 'px'; // 设置最大宽度 1370
-        if (pageInfo.listDisplayMode === 't' && $c('itg gld')[0]) {
-            $c('itg gld')[0].style.gridTemplateColumns = 'repeat(' + layout.columnsS + ', 1fr)'; // 设置列数
-            $c('itg gld')[0].style.width = clientWidthS_itg + 'px'; // 设置边距 '99%'
+        $c('ido')[0]。style.maxWidth = clientWidthS_ido + 'px'; // 设置最大宽度 1370
+        if (pageInfo。listDisplayMode === 't' && $c('itg gld')[0]) {
+            $c('itg gld')[0]。style.gridTemplateColumns = 'repeat(' + layout.columnsS + ', 1fr)'; // 设置列数
+            $c('itg gld')[0]。style.width = clientWidthS_itg + 'px'; // 设置边距 '99%'
         } else if ($c('itg')[0]) {
             $c('itg')[0].style.maxWidth = clientWidthS_itg + 'px';
             $c('itg')[0].style.width = clientWidthS_itg + 'px';
@@ -602,8 +602,8 @@
 
         const searchnavEls = $c('searchnav');
         const paddingValue = (width - layout.marginAdjustmentS - layout.paddingAdjustmentS >= minWidthNumber)
-            ? cfg.pagePadding
-            : (width - minWidthNumber - layout.marginAdjustmentS) / 2;
+            ? cfg。pagePadding
+            : (width - minWidthNumber - layout。marginAdjustmentS) / 2;
         for (let i = 0; i < 2; i++) {
             const el = searchnavEls[i];
             if (!el) continue;
@@ -640,16 +640,16 @@
             // 调整搜索盒子大小
             const isLargerWidth = clientWidthS_ido >= 720 + 670 + 14 + layout.paddingAdjustmentS; //1460
             if ($c('idi')[0]) { $c('idi')[0].style.width = (isLargerWidth ? 720 + 670 : 720) + 'px'; }
-            if ($c('idi')[1]) { $c('idi')[1].style.width = (isLargerWidth ? 720 + 670 : 720) + 'px'; }
+            if ($c('idi')[1]) { $c('idi')[1]。style.width = (isLargerWidth ? 720 + 670 : 720) + 'px'; }
             if ($i('f_search')) { $i('f_search').style.width = (isLargerWidth ? 560 + 670 : 560) + 'px'; }
         }
 
         // 调整更窄的收藏页面，和首页保持一致
         if (pageInfo.isFavoritesPage && clientWidthS_ido < (930 + layout.paddingAdjustmentS)) {
-            const noselWidth = Math.max(735, Math.min(825, clientWidthS_ido));
+            const noselWidth = Math。max(735, Math.min(825, clientWidthS_ido));
             if ($c('nosel')[1]) { $c('nosel')[1].style.width = noselWidth + 'px'; }
             const fpElements = $$('div.fp');
-            const fpWidth = Math.max(142, Math.min(160, (clientWidthS_ido - 16) / 5 - 1)) + 'px';
+            const fpWidth = Math。max(142, Math.min(160， (clientWidthS_ido - 16) / 5 - 1)) + 'px';
             for (let i = 0; i < Math.min(10, fpElements.length); i++) {
                 fpElements[i].style.width = fpWidth;
             }
@@ -796,7 +796,9 @@
     /** 收集画廊页面信息 */
     function collectDataG() {
         const gdt = $i('gdt');
-        const gdtThumbs = gdt.querySelectorAll('a > div:nth-child(1) > div:nth-child(1)');
+        const gdtThumbsSingle = gdt.querySelectorAll('a > div:nth-child(1)');
+        const gdtThumbsDouble = gdt.querySelectorAll('a > div:nth-child(1) > div:nth-child(1)');
+        const gdtThumbs = gdtThumbsDouble.length ? gdtThumbsDouble : gdtThumbsSingle;
         const gdtThumbPages = gdt.querySelectorAll('a > div:nth-child(1) > div:nth-child(2)');
 
         const spriteCountMap = new Map(); // 记录每张背景图出现次数
@@ -979,7 +981,9 @@
             el.style.backgroundPosition = x * cfg.zoomFactorG + 'px 0px';
 
             // 设置page最大宽度（便于居中）
-            pageEl.style.maxWidth = itemWidth * cfg.zoomFactorG + 'px';
+            if (pageEl) {
+                pageEl.style.maxWidth = itemWidth * cfg.zoomFactorG + 'px';
+            }
 
             // 处理雪碧图尺寸
             if (isSprite) {
@@ -1386,13 +1390,13 @@
             // 保存状态以备恢复
             const oldState = originalStates.get(gdf) || {};
             originalStates.set(gdf, {
-                ...oldState,
-                iconMarginLeft: iconDiv.style.marginLeft,
+                ...oldState，
+                iconMarginLeft: iconDiv。style.marginLeft,
             });
-            iconDiv.style.marginLeft = '0';
+            iconDiv。style。marginLeft = '0';
         }
 
-        replaceOnClick(gdf, favUrl); // 替换点击事件绑定收藏弹窗
+        replaceOnClick(gdf， favUrl); // 替换点击事件绑定收藏弹窗
     }
 
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -1400,21 +1404,21 @@
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
     /** 加载下一页的状态 */
     const nextPage = {
-        isLoading: false,
-        nextPageLink: null,
+        isLoading: false，
+        nextPageLink: null，
         loadedCount: 1
     }
 
     /** 获取下一页链接 */
     function getNextPageLink(doc) {
-        if (pageInfo.listDisplayMode) {
-            nextPage.nextPageLink = doc.querySelector('#dnext')?.href;
+        if (pageInfo。listDisplayMode) {
+            nextPage。nextPageLink = doc.querySelector('#dnext')?.href;
             if (nextPage.nextPageLink) {
-                $i('unext').href = nextPage.nextPageLink;
-                $i('dnext').href = nextPage.nextPageLink;
+                $i('unext')。href = nextPage.nextPageLink;
+                $i('dnext')。href = nextPage。nextPageLink;
             }
         } else if (pageInfo.isGalleryPage) {
-            nextPage.nextPageLink = doc.querySelector('.ptb tr:first-child td:last-child a')?.href;
+            nextPage。nextPageLink = doc.querySelector('.ptb tr:first-child td:last-child a')?.href;
             if (nextPage.nextPageLink) {
                 $('.ptt tr:first-child td:last-child a').href = nextPage.nextPageLink;
                 $('.ptb tr:first-child td:last-child a').href = nextPage.nextPageLink;
@@ -1424,15 +1428,15 @@
 
     /** 无限滚动加载下一页 */
     async function loadNextPage() {
-        if (nextPage.isLoading || !nextPage.nextPageLink) return;
+        if (nextPage。isLoading || !nextPage.nextPageLink) return;
 
-        nextPage.isLoading = true;
+        nextPage。isLoading = true;
         try {
             console.log('LOLICON 加载下一页：', nextPage.nextPageLink);
-            const response = await fetch(nextPage.nextPageLink);
+            const response = await fetch(nextPage。nextPageLink);
             const html = await response.text();
             const parser = new DOMParser();
-            const fetchedDoc = parser.parseFromString(html, 'text/html');
+            const fetchedDoc = parser.parseFromString(html， 'text/html');
             let nextContent;
             if (pageInfo.listDisplayMode === 't') {
                 nextContent = fetchedDoc.querySelectorAll('.gl1t');
@@ -1444,23 +1448,23 @@
 
             if (nextContent.length > 0) {
                 const fragment = document.createDocumentFragment();
-                nextContent.forEach((item, index) => {
+                nextContent.forEach((item， index) => {
                     if (pageInfo.listDisplayMode === 't' || pageInfo.listDisplayMode === 'e' || pageInfo.isGalleryPage || index > 0) {
                         fragment.appendChild(item);
                     }
                 });
 
                 if (pageInfo.listDisplayMode === 't') {
-                    $c('itg gld')[0].appendChild(fragment);
-                } else if (pageInfo.listDisplayMode) {
+                    $c('itg gld')[0]。appendChild(fragment);
+                } else if (pageInfo。listDisplayMode) {
                     $('.itg > tbody').appendChild(fragment);
                 } else if (pageInfo.isGalleryPage) {
-                    $i('gdt').appendChild(fragment);
+                    $i('gdt')。appendChild(fragment);
                 }
 
                 nextPage.loadedCount++;
-                console.log('LOLICON 下一页内容已成功加载。');
-                if (pageInfo.listDisplayMode) {
+                console。log('LOLICON 下一页内容已成功加载。');
+                if (pageInfo。listDisplayMode) {
                     collectDataS();
                     if (pageInfo.listDisplayMode === 't') modifyThumbnailSizeS();
                     updateGlinkIndex();
@@ -1481,7 +1485,7 @@
             getNextPageLink(fetchedDoc);
 
             if (nextPage.nextPageLink) {
-                console.log('LOLICON 下一页链接已更新为：', nextPage.nextPageLink);
+                console。log('LOLICON 下一页链接已更新为：'， nextPage.nextPageLink);
             } else {
                 console.log('LOLICON 已是最后一页');
             }
@@ -1606,18 +1610,18 @@
         });
 
         const bottomElement = $create('div');
-        bottomElement.classList.add('LOLICON-infinite-scroll-trigger');
-        document.body.appendChild(bottomElement);
+        bottomElement。classList。add('LOLICON-infinite-scroll-trigger');
+        document。body。appendChild(bottomElement);
 
-        observer.observe(bottomElement);
+        observer。observe(bottomElement);
     }
 
     /** 监控更缩略图 */
     function monitorMoreThumbnail() {
         const observer = new IntersectionObserver(([entry]) => {
-            if (entry.isIntersecting && cfg.moreThumbnail) {
-                if (cfg.maxPagesG != 0 && nextPage.loadedCount >= cfg.maxPagesG) {
-                    console.log('LOLICON 已达到最大页数限制: ', nextPage.loadedCount, ' >= ', cfg.maxPagesG);
+            if (entry。isIntersecting && cfg。moreThumbnail) {
+                if (cfg。maxPagesG != 0 && nextPage。loadedCount >= cfg。maxPagesG) {
+                    console。log('LOLICON 已达到最大页数限制: '， nextPage。loadedCount， ' >= '， cfg。maxPagesG);
                     return
                 }
                 throttledLoadNextPage();
@@ -1625,35 +1629,35 @@
         });
 
         const trigger = $create('div');
-        trigger.id = 'LOLICON-more-thumbnail-trigger';
-        $i('gdt').after(trigger);
+        trigger。id = 'LOLICON-more-thumbnail-trigger';
+        $i('gdt')。after(trigger);
 
-        observer.observe(trigger);
+        observer。observe(trigger);
     }
 
-    console.log('LOLICON 开始');
+    console。log('LOLICON 开始');
 
     // 设置菜单
-    GM_registerMenuCommand(translate('settings'), showSettingsPanel);
+    GM_registerMenuCommand(translate('settings')， showSettingsPanel);
 
     // 初始化基础
     initialize();
     calculateDimensions();
 
     // 收藏页面修改
-    if (pageInfo.isFavoritesPage) {
-        $c('ido')[0].style.minWidth = '740px';
+    if (pageInfo。isFavoritesPage) {
+        $c('ido')[0]。style。minWidth = '740px';
     }
 
     // 初始化收藏夹
-    if (cfg.quickFavorite) {
+    if (cfg。quickFavorite) {
         initFavcat();
     }
 
-    if (pageInfo.listDisplayMode) {
+    if (pageInfo。listDisplayMode) {
         collectDataS();
 
-        if (pageInfo.listDisplayMode === 't') {
+        if (pageInfo。listDisplayMode === 't') {
             modifyThumbnailSizeS();
         }
         adjustColumnsS();
@@ -1665,16 +1669,16 @@
         if (cfg.quickFavorite) {
             replaceFavClickS();
         }
-        window.addEventListener('resize', throttledAdjustColumnsS);
-        window.addEventListener('scroll', () => {
-            if (cfg.liveURLUpdate && !pageInfo.isPopularPage && !pageInfo.isFavoritesPage) {
+        window。addEventListener('resize'， throttledAdjustColumnsS);
+        window。addEventListener('scroll'， () => {
+            if (cfg。liveURLUpdate && !pageInfo。isPopularPage && !pageInfo。isFavoritesPage) {
                 throttledUpdateURLOnScroll();
             }
         });
     } else if ($i('searchbox')) {
         adjustColumnsS();
-        window.addEventListener('resize', throttledAdjustColumnsS);
-    } else if (pageInfo.isGalleryPage) {
+        window。addEventListener('resize'， throttledAdjustColumnsS);
+    } else if (pageInfo。isGalleryPage) {
         collectDataG();
         modifyThumbnailSizeG();
         adjustColumnsG();
@@ -1682,10 +1686,10 @@
         getNextPageLink(document);
         monitorMoreThumbnail()
 
-        if (cfg.quickFavorite) {
+        if (cfg。quickFavorite) {
             replaceFavClickG();
         }
-        window.addEventListener('resize', throttledAdjustColumnsG);
+        window。addEventListener('resize'， throttledAdjustColumnsG);
     }
 
 })();
