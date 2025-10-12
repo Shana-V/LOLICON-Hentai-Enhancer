@@ -70,7 +70,7 @@
         infiniteScroll: { def: false },
         maxPagesS: { def: 0, step: 1, min: 0, max: 1000 },
         moreThumbnail: { def: false },
-        maxPagesG: { def: 0， step: 1, min: 0, max: 1000 },
+        maxPagesG: { def: 0, step: 1, min: 0, max: 1000 },
         toggleEH: { def: true }
     };
 
@@ -90,19 +90,19 @@
     /** 当前网页信息 */
     const pageInfo = {
         originalUrl: window.location.href, // 当前 URL
-        isEhentai: window.location。hostname.endsWith('e-hentai.org'), // 判断是否是 e变态
-        isExhentai: window.location.hostname.endsWith('exhentai.org')， // 判断是否是 ex变态
-        isTor: window.location。hostname.endsWith('exhentai55ld2wyap5juskbm67czulomrouspdacjamjeloj7ugjbsad.onion'), // 判断是否是 Tor
+        isEhentai: window.location.hostname.endsWith('e-hentai.org'), // 判断是否是 e变态
+        isExhentai: window.location.hostname.endsWith('exhentai.org'), // 判断是否是 ex变态
+        isTor: window.location.hostname.endsWith('exhentai55ld2wyap5juskbm67czulomrouspdacjamjeloj7ugjbsad.onion'), // 判断是否是 Tor
 
         isHomePage: window.location.pathname === '/', // 首页&搜索页面
-        isWatchedPage: window.location.pathname。startsWith('/watched'), // 订阅页面
-        isPopularPage: window.location。pathname.startsWith('/popular'), // 热门页面
+        isWatchedPage: window.location.pathname.startsWith('/watched'), // 订阅页面
+        isPopularPage: window.location.pathname.startsWith('/popular'), // 热门页面
         isTorrentsPage: window.location.pathname.startsWith('/torrents.php'), // 种子页面
-        isFavoritesPage: window.location。pathname.startsWith('/favorites.php')， // 收藏夹页面
-        isUconfigPage: window.location。pathname.startsWith('/uconfig.php'), // 设置页面
+        isFavoritesPage: window.location.pathname.startsWith('/favorites.php'), // 收藏夹页面
+        isUconfigPage: window.location.pathname.startsWith('/uconfig.php'), // 设置页面
         isMytagsPage: window.location.pathname.startsWith('/mytags'), // 我的标签页面
-        isGalleryPage: window.location。pathname.startsWith('/g/'), // 画廊页面
-        isImagePage: window.location。pathname.startsWith('/s/'), // 图片页面
+        isGalleryPage: window.location.pathname.startsWith('/g/'), // 画廊页面
+        isImagePage: window.location.pathname.startsWith('/s/'), // 图片页面
         isGalleryPopupsPage: window.location.pathname.startsWith('/gallerypopups.php'), // 画廊弹出窗口
 
         listDisplayMode: $('.searchnav div:last-child select')?.value // 列表显示模式（m/p/l/e/t）
@@ -115,11 +115,11 @@
     /** 定义语言包 */
     const _translations = {
         'zoomFactorS': {
-            'en': 'Thumbnail Zoom'，
-            'zh-CN': '缩略图缩放'，
-            'zh-TW': '縮圖縮放'，
-            'ja': 'サムネイルズーム'，
-            'ko': '썸네일 확대 비율'，
+            'en': 'Thumbnail Zoom',
+            'zh-CN': '缩略图缩放',
+            'zh-TW': '縮圖縮放',
+            'ja': 'サムネイルズーム',
+            'ko': '썸네일 확대 비율',
             'ru': 'Масштаб миниатюры'
         },
         'zoomFactorG': {
@@ -145,7 +145,7 @@
             'ja': 'サムネイル間隔',
             'ko': '썸네일 간격',
             'ru': 'Интервал миниатюр'
-        }，
+        },
         'pageMargin': {
             'en': 'Page Margin',
             'zh-CN': '页面外边距',
@@ -161,7 +161,7 @@
             'ja': 'ページパディング',
             'ko': '페이지 내부 여백',
             'ru': 'Внутренний отступ страницы'
-        }，
+        },
         'fullScreenMode': {
             'en': 'Full Screen Mode',
             'zh-CN': '全屏模式',
@@ -173,7 +173,7 @@
         'squareMode': {
             'en': 'Square Thumbnail',
             'zh-CN': '方形缩略图',
-            'zh-TW': '方形縮圖'，
+            'zh-TW': '方形縮圖',
             'ja': 'スクエアサムネイル',
             'ko': '정사각형 썸네일',
             'ru': 'Квадратная миниатюра'
@@ -204,7 +204,7 @@
         },
         'infiniteScroll': {
             'en': 'Infinite Scroll',
-            'zh-CN': '无限滚动'，
+            'zh-CN': '无限滚动',
             'zh-TW': '無限滾動',
             'ja': '無限スクロール',
             'ko': '무한 스크롤',
@@ -212,10 +212,10 @@
         },
         'maxPagesS': {
             'en': 'Max Pages [0 = Unlimited]',
-            'zh-CN': '最大页数 [0 = 无限]'，
+            'zh-CN': '最大页数 [0 = 无限]',
             'zh-TW': '最大頁數 [0 = 無限]',
-            'ja': '最大ページ数 [0 = 無制限]'，
-            'ko': '최대 페이지 [0 = 무한]'，
+            'ja': '最大ページ数 [0 = 無制限]',
+            'ko': '최대 페이지 [0 = 무한]',
             'ru': 'Макс. страниц [0 = Бесконечно]'
         },
         'moreThumbnail': {
@@ -249,7 +249,7 @@
             'ja': '設定',
             'ko': '설정',
             'ru': 'Настройки'
-        }，
+        },
         'settingsPanel': {
             'en': 'Settings Panel',
             'zh-CN': '设置面板',
@@ -267,10 +267,10 @@
             'ru': 'Сохранить'
         },
         'cancel': {
-            'en': 'Cancel'，
+            'en': 'Cancel',
             'zh-CN': '取消',
             'zh-TW': '取消',
-            'ja': 'キャンセル'，
+            'ja': 'キャンセル',
             'ko': '취소',
             'ru': 'Отменить'
         },
@@ -651,7 +651,7 @@
                         const firstRow = rows[0];
                         const secondRow = rows[1];
 
-                        Array。from(secondRow。children)。forEach(td => {
+                        Array.from(secondRow.children).forEach(td => {
                             firstRow.appendChild(td);
                         });
                         secondRow.remove();
@@ -676,7 +676,7 @@
             const fpElements = $$('div.fp');
             const fpWidth = Math.max(142, Math.min(160, (clientWidthS_ido - 16) / 5 - 1)) + 'px';
             for (let i = 0; i < Math.min(10, fpElements.length); i++) {
-                fpElements[i]。style.width = fpWidth;
+                fpElements[i].style.width = fpWidth;
             }
             const idoTarget = $('.ido > div:nth-child(3)');
             if (idoTarget) {
@@ -687,24 +687,24 @@
                 }
             }
         } else if (pageInfo.isFavoritesPage) {
-            if ($c('nosel')[1]) { $c('nosel')[1]。style.width = '825px'; }
+            if ($c('nosel')[1]) { $c('nosel')[1].style.width = '825px'; }
             const fpElements = $$('div.fp');
             for (let i = 0; i < Math.min(10, fpElements.length); i++) {
                 fpElements[i].style.width = '160px';
             }
             const idoTarget = $('.ido > div:nth-child(3)');
             if (idoTarget) {
-                idoTarget。style.width = '825px';
-                const inputTarget = idoTarget。querySelector('form:nth-child(1) > div:nth-child(2) > input:nth-child(1)');
+                idoTarget.style.width = '825px';
+                const inputTarget = idoTarget.querySelector('form:nth-child(1) > div:nth-child(2) > input:nth-child(1)');
                 if (inputTarget) {
-                    inputTarget.setAttribute('size'， '90');
+                    inputTarget.setAttribute('size', '90');
                 }
             }
         }
 
         if (layout.columnsS != layout.OLDcolumnsS && cfg.liveURLUpdate && !pageInfo.isPopularPage && !pageInfo.isFavoritesPage) {
             throttledGetRowInfo();
-            layout.OLDcolumnsS = layout。columnsS;
+            layout.OLDcolumnsS = layout.columnsS;
         }
     }
 
@@ -715,16 +715,16 @@
         const gdt = $i('gdt');
         if (gdt) {
 
-            const width = window。innerWidth;
-            const isGT200 = gdt。classList.contains('gt200');
+            const width = window.innerWidth;
+            const isGT200 = gdt.classList.contains('gt200');
             const pixelCorrection = 2 / devicePixelRatio;
 
             const spacingCorrection = isGT200 ? cfg.spacing * 2 : cfg.spacing;
-            const columnWidthGL = isGT200 ? layout。columnWidthG * 2 + pixelCorrection : layout.columnWidthG + pixelCorrection;
+            const columnWidthGL = isGT200 ? layout.columnWidthG * 2 + pixelCorrection : layout.columnWidthG + pixelCorrection;
 
             const clientWidthGL = Math.max(700, width - layout.marginAdjustmentG) + spacingCorrection;
             const columnsG = Math.floor(clientWidthGL / columnWidthGL);
-            const clientWidthG_gdt = cfg。fullScreenMode ? Math.max(700, width - layout.marginAdjustmentG) : Math.max(700, columnsG * columnWidthGL - spacingCorrection);
+            const clientWidthG_gdt = cfg.fullScreenMode ? Math.max(700, width - layout.marginAdjustmentG) : Math.max(700, columnsG * columnWidthGL - spacingCorrection);
 
             if ($c('gm')[0]) { $c('gm')[0].style.maxWidth = clientWidthG_gdt + 20 + 'px'; } // 设置最详情大宽度 720 960 1200
             if ($c('gm')[1]) { $c('gm')[1].style.maxWidth = clientWidthG_gdt + 20 + 'px'; } // 设置最评论区大宽度 720 960 1200
@@ -1034,19 +1034,26 @@
         5: 'rgb(153, 255, 68)', 6: 'rgb(68, 187, 255)', 7: 'rgb(0, 0, 255)', 8: 'rgb(85, 0, 136)', 9: 'rgb(238, 136, 238)'
     };
 
-    /** 异步获取收藏夹名称列表 */
+    /** 异步获取收藏夹目录列表 */
     const getFavcatList = async () => {
         let names = [];
         try {
-            if (pageInfo.isUconfigPage) {
-                const html = document.documentElement.innerHTML;
-                names = [...html.matchAll(/input type="text" name="favorite_\d" value="(.*?)"/g)].map(m => m[1]);
+            if (pageInfo.isFavoritesPage) {
+                const icons = document.querySelectorAll('.nosel .fp .i');
+                names = [...icons].map(div => div.title.trim());
+            }
+            else if (pageInfo.isUconfigPage) {
+                names = [...document.querySelectorAll('input[name^="favorite_"][type="text"]')].map(input => input.value.trim());
             }
             else if (pageInfo.isGalleryPopupsPage) {
                 const nosel = $('.nosel');
                 if (nosel) {
                     names = [...nosel.querySelectorAll('div[style*="cursor:pointer"]')]
-                        .map(div => div.querySelector('div[style*="padding-top"]').textContent.trim());
+                        .map(div => {
+                            const textDiv = div.querySelector('div[style*="padding-top"]');
+                            return textDiv ? textDiv.textContent.trim() : null; // 找不到就返回 null (从收藏中移除 按钮)
+                        })
+                        .filter(Boolean); // 去掉 null
                 }
             } else {
                 // 其他页面用 fetch 请求
@@ -1055,19 +1062,19 @@
                 names = [...html.matchAll(/input type="text" name="favorite_\d" value="(.*?)"/g)].map(m => m[1]);
             }
         } catch (error) {
-            console.error('LOLICON 获取收藏夹名称列表时发生错误：', error);
+            console.error('LOLICON 获取收藏夹目录列表时发生错误：', error);
         }
         return names;
     };
 
-    /** 收藏夹名称 */
+    /** 收藏夹目录 */
     let favcat = [];
 
-    /** 异步函数：更新收藏夹名称 */
+    /** 异步函数：更新收藏夹目录 */
     async function updateFavcat() {
         favcat = await getFavcatList();
         localStorage.favcat = JSON.stringify(favcat);
-        console.log('LOLICON 更新收藏夹名称', favcat);
+        console.log('LOLICON 更新收藏夹目录', favcat);
     }
 
     /** 异步函数：初始化收藏夹列表 */
@@ -1287,13 +1294,13 @@
     /** 恢复元素原onclick事件、鼠标样式、取消自定义点击事件 */
     function restoreElements() {
         // 先把所有保存的元素缓存到数组，避免边遍历边修改 Map 导致的问题
-        const elements = Array.from(originalStates。keys());
+        const elements = Array.from(originalStates.keys());
 
         for (const el of elements) {
-            const state = originalStates。get(el);
+            const state = originalStates.get(el);
             if (!state) continue;
 
-            const { originalOnClick， originalCursor, clickHandler, onMouseEnter, onMouseLeave, iconMarginLeft } = state;
+            const { originalOnClick, originalCursor, clickHandler, onMouseEnter, onMouseLeave, iconMarginLeft } = state;
 
             el.style.cursor = originalCursor || '';
 
@@ -1303,18 +1310,18 @@
 
             if (pageInfo.listDisplayMode) {
 
-            } else if (pageInfo。isGalleryPage) {
-                el。removeAttribute('style');
+            } else if (pageInfo.isGalleryPage) {
+                el.removeAttribute('style');
                 // 设置 gdf 内部 div#fav div.i 的 margin-left 为 0
                 const iconDiv = el.querySelector('div#fav div.i');
                 if (iconDiv) {
-                    iconDiv。style。marginLeft = iconMarginLeft;
+                    iconDiv.style.marginLeft = iconMarginLeft;
                 }
             }
 
             // 恢复 onclick 属性
             if (originalOnClick) {
-                el。setAttribute('onclick'， originalOnClick);
+                el.setAttribute('onclick', originalOnClick);
             }
 
             // 解绑自定义点击事件
@@ -1329,36 +1336,36 @@
     function bindHoverEffect(el) {
         function onMouseEnter() {
             let color = '#000000';
-            if (pageInfo。isExhentai || pageInfo.isTor) { color = '#ffffff'; }
+            if (pageInfo.isExhentai || pageInfo.isTor) { color = '#ffffff'; }
             if (pageInfo.listDisplayMode) {
-                if (el。style。backgroundColor) return;
-                el。style。borderColor = color;
+                if (el.style.backgroundColor) return;
+                el.style.borderColor = color;
             } else if (pageInfo.isGalleryPage) {
-                el。style.backgroundColor = color + '24';
-                el。style.boxShadow = 'inset 0 0 0 2px' + color + '12';
+                el.style.backgroundColor = color + '24';
+                el.style.boxShadow = 'inset 0 0 0 2px' + color + '12';
             }
         }
         function onMouseLeave() {
-            if (pageInfo。listDisplayMode) {
+            if (pageInfo.listDisplayMode) {
                 if (el.style.backgroundColor) return;
                 el.style.borderColor = '';
             } else if (pageInfo.isGalleryPage) {
-                el。style。backgroundColor = '';
+                el.style.backgroundColor = '';
                 el.style.boxShadow = '';
             }
         }
 
         // 保存状态以备恢复
         const oldState = originalStates.get(el) || {};
-        originalStates。set(el， {
-            ...oldState，
-            onMouseEnter，
-            onMouseLeave，
+        originalStates.set(el, {
+            ...oldState,
+            onMouseEnter,
+            onMouseLeave,
         });
 
         // 绑定事件
         el.addEventListener('mouseenter', onMouseEnter);
-        el。addEventListener('mouseleave'， onMouseLeave);
+        el.addEventListener('mouseleave', onMouseLeave);
     }
 
     /** 给列表页中的元素替换点击事件，启用收藏菜单 */
@@ -1372,7 +1379,7 @@
             m: '.glthumb + div',
             p: '.glthumb + div',
             l: '.glthumb + div > :first-child',
-            e: '.gl3e>:nth-child(2)'，
+            e: '.gl3e>:nth-child(2)',
             t: '.gl5t>:first-child>:nth-child(2)'
         };
 
@@ -1383,7 +1390,7 @@
             bindHoverEffect(el);
 
             const favUrl = el.onclick.toString().match(/https.*addfav/)[0]; // 从onclick字符串提取收藏URL
-            replaceOnClick(el， favUrl); // 替换点击事件绑定收藏弹窗
+            replaceOnClick(el, favUrl); // 替换点击事件绑定收藏弹窗
         });
     }
 
@@ -1392,7 +1399,7 @@
         await initFavcat(); // 等待 favcat 数据就绪
 
         // 从URL路径解析画廊ID和类型
-        const matchGallery = window。location.pathname.match(/\/g\/(\d+)\/(\w+)/);
+        const matchGallery = window.location.pathname.match(/\/g\/(\d+)\/(\w+)/);
         if (!matchGallery) return;
 
         // 拼接收藏请求地址
@@ -1705,9 +1712,9 @@
     /** 监控更缩略图 */
     function monitorMoreThumbnail() {
         const observer = new IntersectionObserver(([entry]) => {
-            if (entry。isIntersecting && cfg。moreThumbnail) {
-                if (cfg。maxPagesG != 0 && nextPage。loadedCount >= cfg。maxPagesG) {
-                    console。log('LOLICON 已达到最大页数限制: '， nextPage。loadedCount， ' >= '， cfg。maxPagesG);
+            if (entry.isIntersecting && cfg.moreThumbnail) {
+                if (cfg.maxPagesG != 0 && nextPage.loadedCount >= cfg.maxPagesG) {
+                    console.log('LOLICON 已达到最大页数限制: ', nextPage.loadedCount, ' >= ', cfg.maxPagesG);
                     return
                 }
                 throttledLoadNextPage();
@@ -1715,28 +1722,28 @@
         });
 
         const trigger = $el('div');
-        trigger。id = 'LOLICON-more-thumbnail-trigger';
-        $i('gdt')。after(trigger);
+        trigger.id = 'LOLICON-more-thumbnail-trigger';
+        $i('gdt').after(trigger);
 
-        observer。observe(trigger);
+        observer.observe(trigger);
     }
 
-    console。log('LOLICON 开始');
+    console.log('LOLICON 开始');
 
     // 设置菜单
-    GM_registerMenuCommand(translate('settings')， showSettingsPanel);
+    GM_registerMenuCommand(translate('settings'), showSettingsPanel);
 
     // 初始化基础
     initialize();
     calculateDimensions();
 
     // 收藏页面修改
-    if (pageInfo。isFavoritesPage) {
-        $c('ido')[0]。style。minWidth = '740px';
+    if (pageInfo.isFavoritesPage) {
+        $c('ido')[0].style.minWidth = '740px';
     }
 
-    // 更新收藏夹
-    if (pageInfo。isUconfigPage || pageInfo。isGalleryPopupsPage) {
+    // 更新收藏夹目录
+    if (pageInfo.isFavoritesPage || pageInfo.isUconfigPage || pageInfo.isGalleryPopupsPage) {
         updateFavcat();
     }
 
@@ -1746,10 +1753,10 @@
         toggleEHButton();
     }
 
-    if (pageInfo。listDisplayMode) {
+    if (pageInfo.listDisplayMode) {
         collectDataS();
 
-        if (pageInfo。listDisplayMode === 't') {
+        if (pageInfo.listDisplayMode === 't') {
             modifyThumbnailSizeS();
         }
         adjustColumnsS();
@@ -1758,19 +1765,19 @@
         getNextPageLink(document);
         monitorInfiniteScroll();
 
-        if (cfg。quickFavorite) {
+        if (cfg.quickFavorite) {
             replaceFavClickS();
         }
-        window。addEventListener('resize'， throttledAdjustColumnsS);
-        window。addEventListener('scroll'， () => {
-            if (cfg。liveURLUpdate && !pageInfo.isPopularPage && !pageInfo.isFavoritesPage) {
+        window.addEventListener('resize', throttledAdjustColumnsS);
+        window.addEventListener('scroll', () => {
+            if (cfg.liveURLUpdate && !pageInfo.isPopularPage && !pageInfo.isFavoritesPage) {
                 throttledUpdateURLOnScroll();
             }
         });
     } else if ($i('searchbox')) {
         adjustColumnsS();
-        window。addEventListener('resize'， throttledAdjustColumnsS);
-    } else if (pageInfo。isGalleryPage) {
+        window.addEventListener('resize', throttledAdjustColumnsS);
+    } else if (pageInfo.isGalleryPage) {
         collectDataG();
         modifyThumbnailSizeG();
         adjustColumnsG();
@@ -1778,10 +1785,10 @@
         getNextPageLink(document);
         monitorMoreThumbnail()
 
-        if (cfg。quickFavorite) {
+        if (cfg.quickFavorite) {
             replaceFavClickG();
         }
-        window。addEventListener('resize'， throttledAdjustColumnsG);
+        window.addEventListener('resize', throttledAdjustColumnsG);
     }
 
 })();
