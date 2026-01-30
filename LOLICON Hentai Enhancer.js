@@ -6,13 +6,13 @@
 // @name:ko             LOLICON Hentai 향상기
 // @name:ru             LOLICON Hentai Улучшатель
 // @namespace           https://greasyfork.org/scripts/516145
-// @version             2025.10.12
-// @description         E-Hentai/ExHentai Auto Window Adaptation, Adjustable Thumbnails (size/margin), Quick Favorite, Infinite Scroll, Load More Thumbnails
-// @description:zh-CN   E-Hentai/ExHentai 自动适配窗口尺寸、缩略图调整（大小/间距）、快速收藏、无限滚动、加载更多缩略图
-// @description:zh-TW   E-Hentai/ExHentai 自動適配視窗尺寸、縮圖調整（大小/間距）、快速收藏、無限滾動、加載更多縮圖
-// @description:ja      E-Hentai/ExHentai ウィンドウ自動適応、サムネイルサイズ・間隔調整、クイックお気に入り、無限スクロール、サムネイル追加読み込み
-// @description:ko      E-Hentai/ExHentai 자동 창 크기 조절, 썸네일 크기/간격 조절, 빠른 즐겨찾기, 무한 스크롤, 썸네일 더보기
-// @description:ru      E-Hentai/ExHentai Автоматическая подгонка окна, Настройка миниатюр (размер/отступ), Быстрое добавление в избранное, Бесконечная прокрутка, Загрузка дополнительных миниатюр
+// @version             2026.01.30
+// @description         E-Hentai/ExHentai Auto Window Adaptation, Adjustable Thumbnails (size/margin), Quick Favorite, Infinite Scroll, Load More Thumbnails, Quick Tag & Search Enhancer
+// @description:zh-CN   E-Hentai/ExHentai 自动适配窗口尺寸、缩略图调整（大小/间距）、快捷收藏、无限滚动、加载更多缩略图、快捷标签 & 搜索增强
+// @description:zh-TW   E-Hentai/ExHentai 自動適配視窗尺寸、縮圖調整（大小/間距）、快捷收藏、無限滾動、加載更多縮圖、快捷標籤 & 搜尋增強
+// @description:ja      E-Hentai/ExHentai ウィンドウ自動適応、サムネイルサイズ・間隔調整、クイックお気に入り、無限スクロール、サムネイル追加読み込み、クイックタグ & 検索強化
+// @description:ko      E-Hentai/ExHentai 자동 창 크기 조절, 썸네일 크기/간격 조절, 빠른 즐겨찾기, 무한 스크롤, 썸네일 더보기, 빠른 태그 & 검색 강화
+// @description:ru      E-Hentai/ExHentai Автоматическая подгонка окна, Настройка миниатюр (размер/отступ), Быстрое добавление в избранное, Бесконечная прокрутка, Загрузка дополнительных миниатюр, Быстрые теги & поиск улучшены
 // @icon                https://e-hentai.org/favicon.ico
 // @match               *://e-hentai.org/*
 // @match               *://exhentai.org/*
@@ -26,20 +26,22 @@
 // @grant               GM_deleteValue
 // @grant               GM_registerMenuCommand
 // @noframes
+// @downloadURL https://update.greasyfork.org/scripts/516145/LOLICON%20Hentai%20%E5%A2%9E%E5%BC%BA%E5%99%A8.user.js
+// @updateURL https://update.greasyfork.org/scripts/516145/LOLICON%20Hentai%20%E5%A2%9E%E5%BC%BA%E5%99%A8.meta.js
 // ==/UserScript==
 
 (function () {
     'use strict';
 
-    /** 根据 id 获取对应的 DOM 元素 */
+    /** getElementById 根据 id 获取对应的 DOM 元素 */
     const $i = (id) => document.getElementById(id);
-    /** 根据类名获取 DOM 集合 (HTMLCollection) */
+    /** getElementsByClassName 根据类名获取 DOM 集合 (HTMLCollection) */
     const $c = (name) => document.getElementsByClassName(name);
     /** querySelector 单个元素 */
     const $ = (sel) => document.querySelector(sel);
     /** querySelectorAll 多个元素 (NodeList) */
     const $$ = (sel) => document.querySelectorAll(sel);
-    /** 创建元素 */
+    /** createElement 创建元素 */
     const $el = (tag) => document.createElement(tag);
 
     /** 获取当前设备的设备像素比（DPR）*/
@@ -66,11 +68,14 @@
         squareMode: { def: false },
         showIndex: { def: false },
         liveURLUpdate: { def: false },
+        tagSearchG: { def: true },
+        quickTag: { def: true },
         quickFavorite: { def: true },
         infiniteScroll: { def: false },
         maxPagesS: { def: 0, step: 1, min: 0, max: 1000 },
         moreThumbnail: { def: false },
         maxPagesG: { def: 0, step: 1, min: 0, max: 1000 },
+        thumbScroll: { def: false },
         toggleEH: { def: true }
     };
 
@@ -103,13 +108,14 @@
         isMytagsPage: window.location.pathname.startsWith('/mytags'), // 我的标签页面
         isGalleryPage: window.location.pathname.startsWith('/g/'), // 画廊页面
         isImagePage: window.location.pathname.startsWith('/s/'), // 图片页面
+        isTagPage: window.location.pathname.startsWith('/tag/'), // 标签页面？和首页&搜索页一样
         isGalleryPopupsPage: window.location.pathname.startsWith('/gallerypopups.php'), // 画廊弹出窗口
 
         listDisplayMode: $('.searchnav div:last-child select')?.value // 列表显示模式（m/p/l/e/t）
     };
 
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-
+    // 设置面板
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
     /** 定义语言包 */
@@ -194,10 +200,26 @@
             'ko': '실시간 URL 업데이트',
             'ru': 'Живое обновление URL',
         },
+        'tagSearchG': {
+            'en': 'Gallery Tag Search',
+            'zh-CN': '画廊标签搜索',
+            'zh-TW': '畫廊標籤搜尋',
+            'ja': 'ギャラリータグ検索',
+            'ko': '갤러리 태그 검색',
+            'ru': 'Поиск по тегам в галерее'
+        },
+        'quickTag': {
+            'en': 'Quick Tag',
+            'zh-CN': '快捷标签',
+            'zh-TW': '快捷標籤',
+            'ja': 'クイックタグ',
+            'ko': '빠른 태그',
+            'ru': 'Быстрые теги'
+        },
         'quickFavorite': {
             'en': 'Quick Favorite',
-            'zh-CN': '快速收藏',
-            'zh-TW': '快速收藏',
+            'zh-CN': '快捷收藏',
+            'zh-TW': '快捷收藏',
             'ja': 'クイックお気に入り',
             'ko': '빠른 즐겨찾기',
             'ru': 'Быстрое избранное'
@@ -233,6 +255,14 @@
             'ja': '最大ページ数 [0 = 無制限]',
             'ko': '최대 페이지 [0 = 무한]',
             'ru': 'Макс. страниц [0 = Бесконечно]'
+        },
+        "thumbScroll": {
+            "en": "Scrollable Thumbnails",
+            "zh-CN": "缩略图独立滚动",
+            "zh-TW": "縮略圖獨立滾動",
+            "ja": "サムネイル専用スクロール",
+            "ko": "썸네일 전용 스크롤",
+            "ru": "Независимая прокрутка миниатюр"
         },
         'toggleEH': {
             'en': 'EH/ExH Switch Button',
@@ -274,13 +304,53 @@
             'ko': '취소',
             'ru': 'Отменить'
         },
-        'InvalidPage': {
+        'invalidPage': {
             'en': 'Unsupported page',
             'zh-CN': '不支持此页面',
             'zh-TW': '不支援此頁面',
             'ja': 'このページはサポートされていません',
             'ko': '이 페이지는 지원되지 않습니다',
             'ru': 'Эта страница не поддерживается'
+        },
+        'manageCustomTags': {
+            'en': 'Manage Custom Tags',
+            'zh-CN': '管理自定义标签',
+            'zh-TW': '管理自訂標籤',
+            'ja': 'カスタムタグを管理',
+            'ko': '사용자 지정 태그 관리',
+            'ru': 'Управление пользовательскими тегами'
+        },
+        'openSearchInNewTab': {
+            'en': 'Right-click or Ctrl+Left-click to search in a new tab',
+            'zh-CN': '右键 或 Ctrl+左键 在新标签页搜索',
+            'zh-TW': '右鍵 或 Ctrl+左鍵 在新標籤頁搜尋',
+            'ja': '右クリックまたはCtrl+左クリックで新しいタブで検索',
+            'ko': '새 탭에서 검색하려면 마우스 오른쪽 버튼 클릭 또는 Ctrl+왼쪽 클릭',
+            'ru': 'Щелкните правой кнопкой мыши или Ctrl+ЛКМ, чтобы искать в новой вкладке'
+        },
+        'invalidInput': {
+            'en': 'Invalid input\n\nUse [tag] or [name @ tag] or [name @ tag tag] format\nExample:\nLOLI @ f:lolicon$\n\nError line:\n',
+            'zh-CN': '无效输入\n\n请使用 [tag] 或 [name @ tag] 或 [name @ tag tag] 格式\n示例:\nLOLI @ f:lolicon$\n\n错误行:\n',
+            'zh-TW': '無效輸入\n\n請使用 [tag] 或 [name @ tag] 或 [name @ tag tag] 格式\n範例:\nLOLI @ f:lolicon$\n\n錯誤行:\n',
+            'ja': '無効な入力です\n\n[tag] または [name @ tag] または [name @ tag tag] 形式を使用してください\n例:\nLOLI @ f:lolicon$\n\nエラー行:\n',
+            'ko': '잘못된 입력\n\n[tag] 또는 [name @ tag] 또는 [name @ tag tag] 형식을 사용하세요\n예시:\nLOLI @ f:lolicon$\n\n오류 줄:\n',
+            'ru': 'Неверный ввод\n\nИспользуйте формат [tag] или [name @ tag] или [name @ tag tag]\nПример:\nLOLI @ f:lolicon$\n\nСтрока с ошибкой:\n'
+        },
+        'unmatchedQuotes': {
+            'en': 'Unmatched quotes\n\nEnsure quotes in tag names and tags are paired\n\nError line:\n',
+            'zh-CN': '引号未成对\n\n请确保标签名称和标签中的引号成对出现\n\n错误行:\n',
+            'zh-TW': '引號未成對\n\n請確保標籤名稱和標籤中的引號成對出現\n\n錯誤行:\n',
+            'ja': '引用符が正しく閉じられていません\n\nタグ名とタグ内の引用符が対になっていることを確認してください\n\nエラー行:\n',
+            'ko': '인용 부호 불일치\n\n태그 이름과 태그 내 인용 부호가 짝을 이루도록 하세요\n\n오류 줄:\n',
+            'ru': 'Непарные кавычки\n\nУбедитесь, что кавычки в имени тега и в теге парные\n\nСтрока с ошибкой:\n'
+        },
+        'duplicateName': {
+            'en': 'Duplicate name\n\nEnsure each tag name is unique\n\nDuplicate name:\n',
+            'zh-CN': '名称重复\n\n请确保每个标签名称都是唯一的\n\n重复名称:\n',
+            'zh-TW': '名稱重複\n\n請確保每個標籤名稱都是唯一的\n\n重複名稱:\n',
+            'ja': '名前が重複しています\n\n各タグ名が一意であることを確認してください\n\n重複した名前:\n',
+            'ko': '중복 이름\n\n각 태그 이름이 고유한지 확인하세요\n\n중복 이름:\n',
+            'ru': 'Дублирующее имя\n\nУбедитесь, что каждое имя тега уникально\n\nДублирующее имя:\n'
         }
     };
 
@@ -374,29 +444,32 @@
                 'zoomFactorS', 'margin', 'pageMargin', 'pagePadding',
                 'fullScreenMode', 'squareMode', 'showIndex',
                 'infiniteScroll',
-                'quickFavorite', 'liveURLUpdate'
+                'quickTag', 'quickFavorite',
+                'liveURLUpdate'
             ];
         } else if (pageInfo.listDisplayMode) {
             controlNames = [
                 'pageMargin', 'pagePadding',
                 'fullScreenMode', 'showIndex',
                 'infiniteScroll',
-                'quickFavorite', 'liveURLUpdate'
-            ];
-        } else if ($i('searchbox')) {
-            controlNames = [
-                'pageMargin', 'pagePadding',
-                'fullScreenMode'
+                'quickTag', 'quickFavorite',
+                'liveURLUpdate'
             ];
         } else if (pageInfo.isGalleryPage) {
             controlNames = [
                 'zoomFactorG', 'spacing', 'pageMargin',
                 'fullScreenMode',
-                'moreThumbnail',
-                'quickFavorite'
+                'moreThumbnail', 'thumbScroll',
+                'tagSearchG', 'quickFavorite'
+            ];
+        } else if ($i('searchbox') || pageInfo.isFavoritesPage) {
+            controlNames = [
+                'pageMargin', 'pagePadding',
+                'fullScreenMode',
+                'quickTag'
             ];
         } else if (!toggleEHInfo.allowed) {
-            return createControlHTML('message', 'InvalidPage');
+            return createControlHTML('message', 'invalidPage');
         }
 
         if (toggleEHInfo.allowed) {
@@ -414,6 +487,9 @@
             } else if (name === 'moreThumbnail' && cfg.moreThumbnail) {
                 const maxPagesHTML = createControlHTML('input', 'maxPagesG', cfg.maxPagesG);
                 htmlPieces.push(maxPagesHTML.replace("style='", "style='margin-left: 24px; color: #666; "));
+            } else if (name === 'tagSearchG' && cfg.tagSearchG) {
+                const maxPagesHTML = createControlHTML('checkbox', 'quickTag', cfg.quickTag);
+                htmlPieces.push(maxPagesHTML);
             }
         });
 
@@ -500,9 +576,9 @@
         setCfgByInput(id, checked);
         applyChanges();
 
-        // 如果这个复选框和展示逻辑有关（例如 infiniteScroll），局部刷新控件
-        if (id === 'infiniteScrollInput' || id === 'moreThumbnailInput') {
-            const panel = document.getElementById('settings-panel');
+        // 如果这个复选框和展示逻辑有关，局部刷新控件
+        if (id === 'infiniteScrollInput' || id === 'moreThumbnailInput' || id === 'tagSearchGInput') {
+            const panel = $i('settings-panel');
             if (panel && typeof panel.refreshControls === 'function') {
                 panel.refreshControls();
             }
@@ -556,13 +632,18 @@
             throttledAdjustColumnsS();
             if (pageInfo.listDisplayMode === 't') modifyThumbnailSizeS();
             updateGlinkIndex();
+            quickTagPanel();
             cfg.quickFavorite ? replaceFavClickS() : restoreElements();
-        } else if ($i('searchbox')) {
-            throttledAdjustColumnsS();
         } else if (pageInfo.isGalleryPage) {
+            tagSearchG();
             throttledAdjustColumnsG();
             modifyThumbnailSizeG();
+            quickTagPanel();
+            setupThumbScroller();
             cfg.quickFavorite ? replaceFavClickG() : restoreElements();
+        } else if ($i('searchbox') || pageInfo.isFavoritesPage) {
+            throttledAdjustColumnsS();
+            quickTagPanel();
         }
         if (toggleEHInfo.allowed) {
             toggleEHButton();
@@ -587,7 +668,7 @@
     }
 
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-
+    // 页面调整
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
     /** 计算尺寸 */
@@ -600,8 +681,8 @@
         layout.paddingAdjustmentS = cfg.pagePadding * 2; // 页面内边距调整值
     }
 
-    /** 搜索类别行 */
-    let initialTableRows = null;
+    /** 搜索类别行td */
+    let initialRowTDs = null;
 
     /** 根据页面宽度动态调整列数 画廊列表页面 */
     function adjustColumnsS() {
@@ -636,38 +717,8 @@
             el.children[6].style.padding = '0 ' + paddingValue + 'px 0 0';
         }
 
-        const searchbox = $i('searchbox'); // 搜索盒子
-        if (searchbox) {
-            const tbody = searchbox.querySelector('tbody');
-            if (tbody) {
-                // 保存搜索类别行
-                if (!initialTableRows) {
-                    initialTableRows = tbody.innerHTML;
-                }
-                if (clientWidthS_ido >= 720 + 670 + 14 + layout.paddingAdjustmentS) { //1460
-                    // 合并搜索类别行
-                    const rows = tbody.querySelectorAll('tr');
-                    if (rows.length >= 2) {
-                        const firstRow = rows[0];
-                        const secondRow = rows[1];
-
-                        Array.from(secondRow.children).forEach(td => {
-                            firstRow.appendChild(td);
-                        });
-                        secondRow.remove();
-                    }
-                } else {
-                    // 恢复为初始状态
-                    tbody.innerHTML = initialTableRows;
-                }
-            }
-
-            // 调整搜索盒子大小
-            const isLargerWidth = clientWidthS_ido >= 720 + 670 + 14 + layout.paddingAdjustmentS; //1460
-            if ($c('idi')[0]) { $c('idi')[0].style.width = (isLargerWidth ? 720 + 670 : 720) + 'px'; }
-            if ($c('idi')[1]) { $c('idi')[1].style.width = (isLargerWidth ? 720 + 670 : 720) + 'px'; }
-            if ($i('f_search')) { $i('f_search').style.width = (isLargerWidth ? 560 + 670 : 560) + 'px'; }
-        }
+        const isLargerWidth = clientWidthS_ido >= 720 + 670 + 14 + layout.paddingAdjustmentS; //1460
+        adjustSearchBox(isLargerWidth);
 
         // 调整更窄的收藏页面，和首页保持一致
         if (pageInfo.isFavoritesPage && clientWidthS_ido < (930 + layout.paddingAdjustmentS)) {
@@ -678,10 +729,10 @@
             for (let i = 0; i < Math.min(10, fpElements.length); i++) {
                 fpElements[i].style.width = fpWidth;
             }
-            const idoTarget = $('.ido > div:nth-child(3)');
-            if (idoTarget) {
-                idoTarget.style.width = noselWidth + 'px';
-                const inputTarget = idoTarget.querySelector('form:nth-child(1) > div:nth-child(2) > input:nth-child(1)');
+            const idoTarget3 = $('.ido > div:nth-child(3)');
+            if (idoTarget3) {
+                idoTarget3.style.width = noselWidth + 'px';
+                const inputTarget = idoTarget3.querySelector('form:nth-child(1) > div:nth-child(2) > input:nth-child(1)');
                 if (inputTarget) {
                     inputTarget.setAttribute('size', Math.max(84, Math.min(90, 84 + (noselWidth - 735) / 15)));
                 }
@@ -692,14 +743,15 @@
             for (let i = 0; i < Math.min(10, fpElements.length); i++) {
                 fpElements[i].style.width = '160px';
             }
-            const idoTarget = $('.ido > div:nth-child(3)');
-            if (idoTarget) {
-                idoTarget.style.width = '825px';
-                const inputTarget = idoTarget.querySelector('form:nth-child(1) > div:nth-child(2) > input:nth-child(1)');
+            const idoTarget3 = $('.ido > div:nth-child(3)');
+            if (idoTarget3) {
+                idoTarget3.style.width = (isLargerWidth ? 720 + 670 : 825) + 'px';
+                const inputTarget = idoTarget3.querySelector('form:nth-child(1) > div:nth-child(2) > input:nth-child(1)');
                 if (inputTarget) {
                     inputTarget.setAttribute('size', '90');
                 }
             }
+            $('.ido > div:nth-child(3) > form:nth-child(1) > div:nth-child(2) > input:nth-child(1)').style.width = (isLargerWidth ? '1230px' : '');
         }
 
         if (layout.columnsS != layout.OLDcolumnsS && cfg.liveURLUpdate && !pageInfo.isPopularPage && !pageInfo.isFavoritesPage) {
@@ -748,6 +800,48 @@
             gdt.style.maxWidth = clientWidthG_gdt + 'px'; // 设置最大宽度 700 940 1180
             gdt.style.gridTemplateColumns = 'repeat(' + columnsG + ', 1fr)';
             gdt.style.gap = cfg.spacing + 'px';
+
+            const isLargerWidth = clientWidthG_gdt >= 720 + 670 + 14; //1460
+            adjustSearchBox(isLargerWidth);
+        }
+    }
+
+    /** 根据页面宽度动态调搜索盒子 */
+    function adjustSearchBox(isLargerWidth) {
+        const searchbox = $i('searchbox'); // 搜索盒子
+        if (searchbox) {
+            const tbody = searchbox.querySelector('tbody');
+            if (tbody) {
+                if (!initialRowTDs) {
+                    const rows = Array.from(tbody.children);
+                    initialRowTDs = rows.map(row => Array.from(row.children)); // 保存每行 td 节点引用
+                }
+
+                if (isLargerWidth) {
+                    // 合并行
+                    const rows = Array.from(tbody.children);
+                    if (rows.length >= 2) {
+                        const firstRow = rows[0];
+                        const secondRow = rows[1];
+                        Array.from(secondRow.children).forEach(td => firstRow.appendChild(td));
+                        secondRow.remove();
+                    }
+                } else {
+                    // 拆分回原始两行
+                    tbody.innerHTML = ''; // 清空 tbody
+
+                    initialRowTDs.forEach(tdArray => {
+                        const tr = $el('tr');
+                        tdArray.forEach(td => tr.appendChild(td)); // 移动原 td 节点
+                        tbody.appendChild(tr);
+                    });
+                }
+            }
+
+            // 调整搜索盒子大小
+            if ($c('idi')[0]) { $c('idi')[0].style.width = (isLargerWidth ? 720 + 670 : 720) + 'px'; }
+            if ($c('idi')[1]) { $c('idi')[1].style.width = (isLargerWidth ? 720 + 670 : 720) + 'px'; }
+            if ($i('f_search')) { $i('f_search').style.width = (isLargerWidth ? 560 + 670 : 560) + 'px'; }
         }
     }
 
@@ -1021,7 +1115,628 @@
     }
 
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+    // 快捷标签
+    /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+    /** 用于在 GM 存储中保存搜索标签数据的键名。 */
+    const STORAGE_KEY = 'custom_tag';
 
+    /** 搜索框相关对象 */
+    const searchBox = {
+        tags: loadTags(),           // 当前所有自定义标签，如 { "按钮名": "搜索语句" }
+        permaBound: false,          // 是否已完成一次性事件绑定（避免重复绑定）
+        container: null,            // 面板容器 DOM
+        input: null,                // 搜索框 DOM
+        searchBtn: null,            // “搜索”按钮 DOM
+        clearBtn: null              // “清空”按钮 DOM
+    }
+
+    /** 加载已存储标签（若不存在则写入默认初始值） */
+    function loadTags() {
+        let data = GM_getValue(STORAGE_KEY, {});
+        if (Object.keys(data).length === 0) {
+            data = { 'LOLI': 'f:lolicon$', 'LOLI-AI': 'f:lolicon$ -o:"ai generated$"', 'LOLI|SB+NP': '~f:lolicon$ ~f:"small breasts$" o:"no penetration$"' };
+            GM_setValue(STORAGE_KEY, data);
+        }
+        return data;
+    }
+
+    /** 将搜索字符串分割成独立的 token（标签） */
+    function tokenize(str) {
+        return new Set(str.match(/[^"\s]*"[^"]*"|[^\s"]+/g) || []);
+    }
+
+    /** 计算字符串在等宽字体下的视觉宽度 */
+    function visualWidth(str) {
+        return Array.from(str).reduce((w, ch) =>
+            w + (/[\u1100-\u115F\u2E80-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE10-\uFE19\uFE30-\uFE6F\uFF00-\uFF60\uFFE0-\uFFE6]/.test(ch) ? 2 : 1)
+            , 0);
+    }
+
+    /** 快捷标签面板 */
+    function quickTagPanel() {
+        const panel = $i('tag-panel');
+        if (pageInfo.isFavoritesPage) {
+            searchBox.input = $('.ido > div:nth-child(3) > form:nth-child(1) > div:nth-child(2) > input:nth-child(1)');
+        } else {
+            searchBox.input = $i('f_search');
+        }
+        if (!searchBox.input) return;
+        searchBox.container = searchBox.input?.parentNode;
+        searchBox.searchBtn = searchBox.input?.nextElementSibling;
+        searchBox.clearBtn = searchBox.searchBtn?.nextElementSibling;
+        if (!searchBox.permaBound) {
+            bindPermanentEvents();
+            searchBox.permaBound = true;
+        }
+        if (cfg.quickTag) {
+            if (!$i('tag-style')) injectCSS();
+            buildPanel();
+            bindToggleableEvents();
+        } else {
+            if (panel) panel.remove();
+
+            if (searchBox.input && searchBox.input._quickTagListeners) {
+                const { refresh, dblclick } = searchBox.input._quickTagListeners;
+                searchBox.input.removeEventListener('input', refresh);
+                searchBox.input.removeEventListener('focus', refresh);
+                searchBox.input.removeEventListener('click', refresh);
+                searchBox.input.removeEventListener('dblclick', dblclick);
+                delete searchBox.input._quickTagListeners;
+            }
+            if (searchBox.clearBtn && searchBox.clearBtn._quickTagListener) {
+                searchBox.clearBtn.removeEventListener('click', searchBox.clearBtn._quickBtnListener, { capture: true });
+                delete searchBox.clearBtn._quickTagListener;
+            }
+        }
+    }
+
+    /** 向页面注入脚本所需的 CSS 样式 */
+    function injectCSS() {
+        const style = $el('style');
+        style.id = 'tag-style';
+        style.textContent = `
+            #tag-panel { padding-top: 6px; }
+            #tag-panel > input[type="button"] { margin: 2px; }
+            input[type="button"].tag-active,
+            input[type="button"].tag-active:hover {
+                border: 2px solid currentColor !important;
+            }
+            #manage-panel {
+                position: fixed; top: 50%; left: 50%;
+                transform: translate(-50%, -50%);
+                background: inherit;
+                padding: 12px 12px 6px 12px;
+                border-radius: 8px;
+                box-shadow: 0 0 12px rgba(0,0,0,0.8);
+                z-index: 1000;
+            }
+            #manage-textarea {
+                min-width: 240px; min-height: 240px;
+                width: 360px; height: 360px;
+                padding: 6px 12px;
+                font-family: monospace; 
+                line-height: 1.2;
+                white-space: pre; 
+            }
+            #manage-footer {
+                display: flex;
+                justify-content: flex-end;
+            }
+            #manage-save, #manage-cancel { margin: 6px; }
+        `;
+        document.head.append(style);
+    }
+
+    /** 构建搜索标签按钮面板并将其插入到页面中 */
+    function buildPanel() {
+        let panel = $i('tag-panel');
+        if (panel) panel.remove(); // 如果面板已存在，先移除，用于刷新
+
+        panel = $el('div');
+        panel.id = 'tag-panel';
+
+        // 遍历搜索标签对象，为每个条目创建一个按钮
+        for (const [name, tag] of Object.entries(searchBox.tags)) {
+            const btn = $el('input');
+            btn.type = 'button';
+            btn.value = name;  // 按钮上显示的文本
+            btn.title = tag;   // 鼠标悬停时显示的完整标签
+            if (isActive(tag)) btn.classList.add('tag-active');
+            btn.addEventListener('click', () => toggleTag(tag));      // 左键点击：切换标签
+            btn.addEventListener('contextmenu', (e) => removeTag(e, name)); // 右键点击：修改标签
+            panel.append(btn);
+        }
+
+        // 创建“管理”按钮
+        const addBtn = $el('input');
+        addBtn.type = 'button';
+        addBtn.value = '+';
+        addBtn.title = translate('manageCustomTags');
+        addBtn.addEventListener('click', showManagePanel);
+        addBtn.addEventListener('contextmenu', (e) => removeTag(e)); // 右键点击：修改标签
+        panel.append(addBtn);
+
+        searchBox.container.append(panel);
+        enableDragSort(panel);
+    }
+
+    /** 绑定可开关的事件：input 和 clearBtn 为页面上的相关元素绑定事件监听器 */
+    function bindToggleableEvents() {
+        if (searchBox.input && !searchBox.input._quickTagListeners) {
+            const refresh = () => updateActiveStyles();
+            searchBox.input.addEventListener('input', refresh);
+            searchBox.input.addEventListener('focus', refresh);
+            searchBox.input.addEventListener('click', refresh);
+            searchBox.input.addEventListener('dblclick', selectTokenByDoubleClick);
+
+            searchBox.input._quickTagListeners = { refresh, dblclick: selectTokenByDoubleClick };
+        }
+
+        if (searchBox.clearBtn && !searchBox.clearBtn._quickTagListener) {
+            const listener = (e) => {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                searchBox.input.value = '';
+                searchBox.input.dispatchEvent(new Event('input', { bubbles: true }));
+                searchBox.input.focus();
+            };
+            searchBox.clearBtn.addEventListener('click', listener, { capture: true });
+            searchBox.clearBtn._quickTagListener = listener;
+        }
+    }
+
+    /** 绑定永久事件：搜索按钮和分类元素绑定事件监听器 */
+    function bindPermanentEvents() {
+        // 设置搜索按钮 title 提示
+        if (searchBox.searchBtn) {
+            searchBox.searchBtn.title = translate('openSearchInNewTab');
+        }
+
+        // 使用事件代理绑定搜索按钮的右键和 Ctrl+点击
+        if (searchBox.container) {
+            searchBox.container.addEventListener('contextmenu', function (e) {
+                if (e.target.matches('[type="submit"][value="Search"]')) {
+                    e.preventDefault();
+                    openInNewTab();
+                }
+            });
+
+            searchBox.container.addEventListener('click', function (e) {
+                if (e.target.matches('[type="submit"][value="Search"]') && e.ctrlKey) {
+                    e.preventDefault();
+                    openInNewTab();
+                }
+            });
+        }
+
+        // 绑定分类元素的右键事件
+        const categories = $$('table.itc div.cs[id^="cat_"]');
+        if (categories.length > 0) {
+            categories.forEach(el => {
+                el.addEventListener('contextmenu', function (e) {
+                    e.preventDefault(); // 阻止默认右键菜单
+
+                    categories.forEach(other => {
+                        if (other !== el && !other.getAttribute('data-disabled')) {
+                            other.onclick();
+                        }
+                    });
+
+                    if (el.getAttribute('data-disabled')) {
+                        el.onclick();
+                    }
+                });
+            });
+        }
+    }
+
+    /** 检查指定的标签当前是否在搜索框中 */
+    function isActive(tag) {
+        if (!searchBox.input) return false;
+
+        const btnTokens = tokenize(tag); // 按钮上的标签集合
+        const inputTokens = tokenize(searchBox.input.value); // 输入框中的标签集合
+
+        // 如果输入框中包含按钮的所有标签，则激活
+        for (const t of btnTokens) {
+            if (!inputTokens.has(t)) return false;
+        }
+        return true;
+    }
+
+    /** 根据当前搜索框的内容，更新所有搜索标签按钮的 'tag-active' 类 */
+    function updateActiveStyles() {
+        const panel = $i('tag-panel');
+        if (!panel || !searchBox.input) return;
+
+        // 遍历所有按钮（除了“+”按钮）
+        panel.querySelectorAll('input[type="button"]').forEach(btn => {
+            if (btn.value === '+') return;
+            btn.classList.toggle('tag-active', isActive(btn.title));
+        });
+    }
+
+    /** 处理搜索标签按钮的点击事件，在搜索框中添加或移除对应的标签 */
+    function toggleTag(tag) {
+        if (!searchBox.input) return;
+
+        const btnTokens = tokenize(tag); // 按钮对应的标签集合
+        const inputTokens = tokenize(searchBox.input.value); // 输入框现有标签
+
+        // 判断是否所有标签都存在
+        const allExist = [...btnTokens].every(t => inputTokens.has(t));
+
+        if (allExist) {
+            btnTokens.forEach(t => inputTokens.delete(t)); // 删除标签
+        } else {
+            btnTokens.forEach(t => inputTokens.add(t));    // 添加标签
+        }
+
+        searchBox.input.value = [...inputTokens].join(' ').trim(); // 更新输入框
+        // 触发 input 事件以通知其他监听器（包括 updateActiveStyles）
+        searchBox.input.dispatchEvent(new Event('input', { bubbles: true }));
+        searchBox.input.focus();
+    }
+
+    /** 处理搜索标签按钮的右键点击事件，用于编辑搜索标签 */
+    function removeTag(e, key) {
+        e.preventDefault();
+        showManagePanel(key);
+    }
+
+    /** 显示用于编辑所有搜索标签的管理面板（模态框） */
+    function showManagePanel(targetKey) {
+        $i('manage-panel')?.remove();
+
+        const panel = $el('div');
+        panel.id = 'manage-panel';
+
+        const ta = $el('textarea');
+        ta.id = 'manage-textarea';
+
+        // 计算最长的按钮名视觉宽度，用于对齐
+        const keys = Object.keys(searchBox.tags);
+        const maxW = Math.max(...keys.map(visualWidth), 0);
+        // 将 tags 对象格式化为易于编辑的文本
+        const lines = Object.entries(searchBox.tags).map(([key, value]) => {
+            const padding = ' '.repeat(maxW - visualWidth(key));
+            return `${key}${padding}  @  ${value}`;
+        });
+        ta.value = lines.join('\n') + '\n';
+
+        // 创建包含“保存”和“取消”按钮的工具栏
+        const bar = $el('div');
+        bar.id = 'manage-footer';
+
+        const btnSave = $el('input');
+        btnSave.type = 'button';
+        btnSave.value = translate('save');
+        btnSave.id = 'manage-save';
+        btnSave.addEventListener('click', saveTags);
+
+        const btnCancel = $el('input');
+        btnCancel.type = 'button';
+        btnCancel.value = translate('cancel');
+        btnCancel.id = 'manage-cancel';
+        btnCancel.addEventListener('click', () => panel.remove()); // 取消按钮直接移除面板
+
+        bar.append(btnSave, btnCancel);
+        panel.append(ta, bar);
+        document.body.append(panel);
+
+        // 如果传入 targetKey，则定位到对应行并选中
+        if (targetKey) {
+            const idx = keys.indexOf(String(targetKey));
+            if (idx >= 0) {
+                const startPos = idx > 0 ? lines.slice(0, idx).join('\n').length + 1 : 0;
+                const lineText = lines[idx];
+
+                ta.focus();
+                ta.setSelectionRange(startPos, startPos + lineText.length);
+
+                const lineHeight = parseInt(window.getComputedStyle(ta).lineHeight) || 18;
+                ta.scrollTop = Math.max(0, idx * lineHeight - (ta.clientHeight - lineHeight) / 2);
+                return;
+            }
+        }
+
+        ta.focus();
+        ta.setSelectionRange(ta.value.length, ta.value.length);
+        ta.scrollTop = ta.scrollHeight;
+    }
+
+    /** 解析管理面板文本框中的内容，并保存新的搜索标签配置 */
+    function saveTags() {
+        const ta = $i('manage-textarea');
+        if (!ta) return;
+
+        const lines = ta.value.split('\n').filter(s => s.trim()); // 按行分割并忽略空行
+        const nextTags = {}; // 用于存储解析后的新配置
+
+        for (const line of lines) {
+            const parts = line.split('@').map(s => s.trim());
+            const key = parts[0];
+            const val = (parts[1] || parts[0]).replace(/\s+/g, ' '); // 如果没有 '@'，则显示名称和标签相同
+
+            if (!key || !val || parts.length > 2) {
+                alert(translate('invalidInput') + line);
+                return;
+            }
+            if (((key.split('"').length - 1) % 2) || ((val.split('"').length - 1) % 2)) {
+                alert(translate('unmatchedQuotes') + line);
+                return;
+            }
+            if (nextTags.hasOwnProperty(key)) {
+                alert(translate('duplicateName') + key);
+                return;
+            }
+
+            nextTags[key] = val;
+        }
+
+        searchBox.tags = nextTags;
+        GM_setValue(STORAGE_KEY, searchBox.tags);
+        $i('manage-panel')?.remove();
+        buildPanel();
+    }
+
+    /** 启用标签按钮拖拽排序 */
+    function enableDragSort(panel) {
+        let dragging = null;
+
+        panel.querySelectorAll('input[type="button"]').forEach(btn => {
+            if (btn.value === '+') return; // "+" 不参与排序
+
+            btn.draggable = true;
+
+            btn.addEventListener('dragstart', e => {
+                dragging = btn;
+                e.dataTransfer.effectAllowed = 'move';
+                btn.classList.add('dragging');
+            });
+
+            btn.addEventListener('dragend', () => {
+                dragging = null;
+                btn.classList.remove('dragging');
+                saveOrderFromPanel(panel);
+            });
+
+            btn.addEventListener('dragover', e => {
+                e.preventDefault();
+                if (!dragging || dragging === btn) return;
+
+                const rect = btn.getBoundingClientRect();
+                const before = (e.clientX - rect.left) < rect.width / 2;
+
+                if (before) {
+                    panel.insertBefore(dragging, btn);
+                } else {
+                    panel.insertBefore(dragging, btn.nextSibling);
+                }
+            });
+        });
+    }
+
+    /** 从排序后的 panel 元素重新生成 tags 并保存 */
+    function saveOrderFromPanel(panel) {
+        const newTags = {};
+        panel.querySelectorAll('input[type="button"]').forEach(btn => {
+            if (btn.value === '+') return;
+            const key = btn.value;
+            const val = searchBox.tags[key];
+            if (val !== undefined) newTags[key] = val;
+        });
+
+        searchBox.tags = newTags;
+        GM_setValue(STORAGE_KEY, searchBox.tags);
+
+        buildPanel(); // 刷新 UI
+    }
+
+    /** 处理搜索框的双击事件，选中光标所在位置的完整 token */
+    function selectTokenByDoubleClick(e) {
+        const input = e.target;
+        const value = input.value;
+        const cursor = input.selectionStart ?? 0; // 获取当前光标位置
+        const items = tokenize(value);
+
+        let pos = 0; // 记录当前检查的 token 在字符串中的起始位置
+        for (const item of items) {
+            const start = pos;
+            const end = pos + item.length;
+            // 判断光标是否在该 token 的范围内
+            if (cursor >= start && cursor <= end) {
+                input.setSelectionRange(start, end); // 选中该 token
+                break;
+            }
+            pos = end + 1; // 移动到下一个 token 的起始位置（跳过一个空格）
+        }
+    }
+
+    /** 根据当前表单内容构建 URL，并在新标签页中打开 */
+    function openInNewTab() {
+        // 找到输入框所在的表单
+        const form = searchBox.input?.form;
+        if (!form) return;
+
+        // 使用表单的 action 属性和当前页面地址来构建一个完整的 URL
+        const url = new URL(form.action, window.location.origin);
+
+        // 遍历表单中的所有元素，将它们的值添加到 URL 的查询参数中
+        Array.from(form.elements).forEach(el => {
+            // 忽略没有 name、被禁用、值为空或为0的元素
+            if (!el.name || el.disabled) return;
+            const v = el.value;
+            if (v == null || v === '' || v === '0') return;
+            // 对于复选框和单选框，只添加被选中的
+            if ((el.type === 'checkbox' || el.type === 'radio') && !el.checked) return;
+
+            url.searchParams.set(el.name, v);
+        });
+
+        window.open(url, '_blank');
+    }
+
+    /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+    // 画廊标签搜索
+    /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+
+    /**  EH 标签命名空间 缩写映射表 */
+    const tag_nsMap = {
+        artist: 'a',
+        character: 'c',
+        cosplayer: 'cos',
+        female: 'f',
+        group: 'g',
+        language: 'l',
+        male: 'm',
+        mixed: 'x',
+        other: 'o',
+        parody: 'p',
+        reclass: 'r'
+    };
+
+    /** 构建并插入一个搜索框到画廊详情页 */
+    function tagSearchG() {
+        if (cfg.tagSearchG && !$i('toppane')) {
+            // 创建搜索容器
+            const searchContainer = $el('div');
+            searchContainer.id = 'toppane';
+            searchContainer.style.display = 'none'; // 默认隐藏，点击标签时再显示
+
+            // 插入到 #gleft 前方，使搜索框位于页面顶部合适位置
+            const insertPoint = $('#gleft');
+            insertPoint.parentNode.insertBefore(searchContainer, insertPoint);
+
+            // 注入搜索框 HTML（复刻 EH 原生结构）
+            searchContainer.innerHTML = `
+<h1 class="ih"></h1><div id="searchbox" class="idi"><form method="get" style="margin:0px; padding:0px">
+<input type="hidden" id="f_cats" name="f_cats" value="0">
+<table class="itc"><tbody><tr>
+<td><div id="cat_2" class="cs ct2">Doujinshi</div></td>
+<td><div id="cat_4" class="cs ct3">Manga</div></td>
+<td><div id="cat_8" class="cs ct4">Artist CG</div></td>
+<td><div id="cat_16" class="cs ct5">Game CG</div></td>
+<td><div id="cat_512" class="cs cta">Western</div></td>
+</tr><tr>
+<td><div id="cat_256" class="cs ct9">Non-H</div></td>
+<td><div id="cat_32" class="cs ct6">Image Set</div></td>
+<td><div id="cat_64" class="cs ct7">Cosplay</div></td>
+<td><div id="cat_128" class="cs ct8">Asian Porn</div></td>
+<td><div id="cat_1" class="cs ct1">Misc</div></td>
+</tr></tbody></table>
+<div><input type="text" id="f_search" name="f_search" placeholder="Search Keywords" size="90" maxlength="200"><input type="submit" value="Search"><input type="button" value="Clear"></div>
+<div>[<a href="#" id="adv_toggle">Show Advanced Options</a>]</div>
+<div id="advdiv" style="display: none;"></div></form></div>
+    `;
+
+            const advTemplate = `
+<input type="hidden" id="advsearch" name="advsearch" value="1">
+<div class="searchadv"><div>
+<div><label class="lc"><input type="checkbox" name="f_sh"><span></span> Browse Expunged Galleries</label></div>
+<div><label class="lc"><input type="checkbox" name="f_sto"><span></span> Require Gallery Torrent</label></div>
+</div><div>
+<div>Between <input type="text" id="f_spf" name="f_spf" size="4" maxlength="4" style="width:30px"> and <input type="text" id="f_spt" name="f_spt" size="4" maxlength="4" style="width:30px"> pages</div>
+<div>Minimum Rating: <select id="f_srdd" name="f_srdd"><option value="0">Any Rating</option><option value="2">2 Stars</option><option value="3">3 Stars</option><option value="4">4 Stars</option><option value="5">5 Stars</option></select></div>
+</div><div>
+<div>Disable custom filters for:</div>
+<div><label class="lc"><input type="checkbox" name="f_sfl"><span></span> Language</label></div>
+<div><label class="lc"><input type="checkbox" name="f_sfu"><span></span> Uploader</label></div>
+<div><label class="lc"><input type="checkbox" name="f_sft"><span></span> Tags</label></div>
+</div></div>
+`;
+
+            // 设置 form 的 action，用于搜索
+            searchContainer.querySelector('form').action = window.location.origin + '/';
+
+            // 为所有分类按钮绑定点击事件（位掩码控制 f_cats）
+            searchContainer.querySelectorAll('[id^="cat_"]').forEach(el => {
+                const id = parseInt(el.id.replace('cat_', ''), 10);
+                el.onclick = () => toggleCategory(id);
+            });
+
+            // 高级选项 Advanced Options 展开/收起逻辑
+            const advToggle = $i('adv_toggle');
+            const advDiv = $i('advdiv');
+            advToggle.onclick = (e) => {
+                if (advDiv.style.display === 'none') {
+                    advDiv.innerHTML = advTemplate;
+                    advDiv.style.display = '';
+                    advToggle.textContent = 'Hide Advanced Options';
+                } else {
+                    advDiv.innerHTML = '';
+                    advDiv.style.display = 'none';
+                    advToggle.textContent = 'Show Advanced Options';
+                }
+            };
+
+            // 点击页面标签显示搜索框并添加/移除搜索词
+            $$('#taglist a').forEach(tag => {
+                tag._tagClickHandler = (e) => {
+                    // 显示搜索框
+                    searchContainer.style.display = 'block';
+
+                    // 从 href 提取标签 命名空间:标签名
+                    const hrefMatch = tag.href.match(/\/tag\/([^:]+):(.+)$/);
+                    if (hrefMatch) {
+                        const ns = hrefMatch[1]; // 命名空间
+                        const nsAbbr = tag_nsMap[ns] || ns; // 映射为 EH 搜索缩写
+                        let tagName = hrefMatch[2].replace(/\+/g, ' '); // + 转空格
+
+                        // 如果 tagName 包含空格，用双引号括起来并把 $ 放入引号内
+                        const tagToken = /\s/.test(tagName)
+                            ? `${nsAbbr}:"${tagName}$"`
+                            : `${nsAbbr}:${tagName}$`;
+
+                        // 交给统一的搜索词切换逻辑处理
+                        toggleTag(tagToken);
+                    }
+                };
+
+                tag.addEventListener('click', tag._tagClickHandler);
+            });
+
+            // 修正封面 #gleft 定位
+            if ($i('gleft')) { $i('gleft').style.top = 'unset'; }
+        } else if (!cfg.tagSearchG && $i('toppane')) {
+            // 页面标签解绑
+            $$('#taglist a').forEach(tag => {
+                if (tag._tagClickHandler) {
+                    tag.removeEventListener('click', tag._tagClickHandler);
+                    delete tag._tagClickHandler;
+                }
+            });
+
+            // 搜索框删除
+            $i('toppane').remove();
+            searchBox.permaBound = false;
+        }
+    }
+
+    /** 切换分类状态（EH f_cats 位掩码）*/
+    function toggleCategory(id) {
+        const el = $i('cat_' + id);
+        const hidden = $i('f_cats');
+        if (!el || !hidden) return;
+
+        let cats = parseInt(hidden.value) || 0;
+
+        if (el.dataset.disabled === '1') {
+            // 启用该分类
+            delete el.dataset.disabled;
+            el.style.opacity = '1';
+            cats &= ~id;
+        } else {
+            // 禁用该分类
+            el.dataset.disabled = '1';
+            el.style.opacity = '0.4';
+            cats |= id;
+        }
+        hidden.value = cats;
+    }
+
+    /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+    // 快捷收藏
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
     /** 颜色映射表，用于给不同收藏夹分配颜色 */
     const COLOR_MAP = {
@@ -1039,11 +1754,11 @@
         let names = [];
         try {
             if (pageInfo.isFavoritesPage) {
-                const icons = document.querySelectorAll('.nosel .fp .i');
+                const icons = $$('.nosel .fp .i');
                 names = [...icons].map(div => div.title.trim());
             }
             else if (pageInfo.isUconfigPage) {
-                names = [...document.querySelectorAll('input[name^="favorite_"][type="text"]')].map(input => input.value.trim());
+                names = [...$$('input[name^="favorite_"][type="text"]')].map(input => input.value.trim());
             }
             else if (pageInfo.isGalleryPopupsPage) {
                 const nosel = $('.nosel');
@@ -1435,7 +2150,7 @@
     }
 
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-
+    // 加载更多
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
     /** 加载下一页的状态 */
     const nextPage = {
@@ -1530,10 +2245,16 @@
         } finally {
             nextPage.isLoading = false;
         }
+        fillThumbnailArea();
+    }
 
+    /** 填充缩略图满高度 */
+    function fillThumbnailArea() {
         if (pageInfo.listDisplayMode && document.body.offsetHeight <= window.innerHeight) {
             throttledLoadNextPage();
-        } else if (pageInfo.isGalleryPage && $i('gdt').getBoundingClientRect().bottom <= window.innerHeight) {
+        } else if (cfg.thumbScroll && $i('gdt').clientHeight + 6 >= $i('gdt').scrollHeight) {
+            throttledLoadNextPage();
+        } else if (!cfg.thumbScroll && pageInfo.isGalleryPage && $i('gdt').getBoundingClientRect().bottom <= window.innerHeight) {
             throttledLoadNextPage();
         }
     }
@@ -1585,8 +2306,22 @@
         }
     }
 
-    /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+    /** 缩略图独立滚动 */
+    function setupThumbScroller() {
+        const gdt = $i('gdt');
+        if (cfg.thumbScroll) {
+            gdt.style.maxHeight = 'calc(90vh - 120px)';
+            gdt.style.overflowY = 'auto';
+            gdt.style.overflowX = 'hidden';
+        } else {
+            gdt.style.maxHeight = '';
+            gdt.style.overflowY = '';
+            gdt.style.overflowX = '';
+        }
+    }
 
+    /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
+    // 网址切换
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
     /** EH/ExH 页面切换信息 */
     const toggleEHInfo = {
@@ -1605,7 +2340,8 @@
             pageInfo.isTorrentsPage ||
             pageInfo.isFavoritesPage ||
             pageInfo.isUconfigPage ||
-            pageInfo.isMytagsPage;
+            pageInfo.isMytagsPage ||
+            pageInfo.isTagPage;
 
         if (window.location.hostname === 'upload.e-hentai.org') {
             toggleEHInfo.currentHost = 'upload.e-hentai.org';
@@ -1644,7 +2380,7 @@
     }
 
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-
+    // 初始化功能
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
     /** 防抖函数 */
@@ -1709,10 +2445,11 @@
         observer.observe(bottomElement);
     }
 
-    /** 监控更缩略图 */
+    /** 监控更多缩略图 */
     function monitorMoreThumbnail() {
+        const gdt = $i('gdt');
         const observer = new IntersectionObserver(([entry]) => {
-            if (entry.isIntersecting && cfg.moreThumbnail) {
+            if (entry.isIntersecting && cfg.moreThumbnail && !cfg.thumbScroll) {
                 if (cfg.maxPagesG != 0 && nextPage.loadedCount >= cfg.maxPagesG) {
                     console.log('LOLICON 已达到最大页数限制: ', nextPage.loadedCount, ' >= ', cfg.maxPagesG);
                     return
@@ -1723,9 +2460,23 @@
 
         const trigger = $el('div');
         trigger.id = 'LOLICON-more-thumbnail-trigger';
-        $i('gdt').after(trigger);
-
+        gdt.after(trigger);
         observer.observe(trigger);
+
+        // 监听滚动事件
+        gdt.addEventListener('scroll', () => {
+            if (cfg.moreThumbnail && cfg.thumbScroll) {
+                if (cfg.maxPagesG != 0 && nextPage.loadedCount >= cfg.maxPagesG) {
+                    console.log('LOLICON 已达到最大页数限制: ', nextPage.loadedCount, ' >= ', cfg.maxPagesG);
+                    return
+                }
+                const scrollBottom = gdt.scrollTop + gdt.clientHeight;
+                const scrollHeight = gdt.scrollHeight;
+                if (scrollBottom >= scrollHeight - 6) { // 留一点误差
+                    throttledLoadNextPage();
+                }
+            }
+        });
     }
 
     console.log('LOLICON 开始');
@@ -1764,23 +2515,24 @@
 
         getNextPageLink(document);
         monitorInfiniteScroll();
-
+        quickTagPanel();
         if (cfg.quickFavorite) {
             replaceFavClickS();
         }
+        fillThumbnailArea();
         window.addEventListener('resize', throttledAdjustColumnsS);
         window.addEventListener('scroll', () => {
             if (cfg.liveURLUpdate && !pageInfo.isPopularPage && !pageInfo.isFavoritesPage) {
                 throttledUpdateURLOnScroll();
             }
         });
-    } else if ($i('searchbox')) {
-        adjustColumnsS();
-        window.addEventListener('resize', throttledAdjustColumnsS);
     } else if (pageInfo.isGalleryPage) {
         collectDataG();
+        tagSearchG();
         modifyThumbnailSizeG();
         adjustColumnsG();
+        quickTagPanel();
+        setupThumbScroller();
 
         getNextPageLink(document);
         monitorMoreThumbnail()
@@ -1788,7 +2540,12 @@
         if (cfg.quickFavorite) {
             replaceFavClickG();
         }
+        fillThumbnailArea();
         window.addEventListener('resize', throttledAdjustColumnsG);
+    } else if ($i('searchbox') || pageInfo.isFavoritesPage) {
+        adjustColumnsS();
+        quickTagPanel();
+        window.addEventListener('resize', throttledAdjustColumnsS);
     }
 
 })();
