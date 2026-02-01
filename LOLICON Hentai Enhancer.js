@@ -6,7 +6,7 @@
 // @name:ko             LOLICON Hentai 향상기
 // @name:ru             LOLICON Hentai Улучшатель
 // @namespace           https://greasyfork.org/scripts/516145
-// @version             2026.01.30
+// @version             2026.02.01
 // @description         E-Hentai/ExHentai Auto Window Adaptation, Adjustable Thumbnails (size/margin), Quick Favorite, Infinite Scroll, Load More Thumbnails, Quick Tag & Search Enhancer
 // @description:zh-CN   E-Hentai/ExHentai 自动适配窗口尺寸、缩略图调整（大小/间距）、快捷收藏、无限滚动、加载更多缩略图、快捷标签 & 搜索增强
 // @description:zh-TW   E-Hentai/ExHentai 自動適配視窗尺寸、縮圖調整（大小/間距）、快捷收藏、無限滾動、加載更多縮圖、快捷標籤 & 搜尋增強
@@ -1237,6 +1237,12 @@
 
         // 遍历搜索标签对象，为每个条目创建一个按钮
         for (const [name, tag] of Object.entries(searchBox.tags)) {
+            // 如果是 "@_"，则插入换行，不生成按钮
+            if (tag === '_') {
+                panel.append($el('br'));
+                continue;
+            }
+
             const btn = $el('input');
             btn.type = 'button';
             btn.value = name;  // 按钮上显示的文本
@@ -1278,7 +1284,10 @@
                 e.stopImmediatePropagation();
                 searchBox.input.value = '';
                 searchBox.input.dispatchEvent(new Event('input', { bubbles: true }));
-                searchBox.input.focus();
+                const canHover = window.matchMedia('(hover: hover)').matches;
+                if (canHover) {
+                    searchBox.input.focus();
+                }
             };
             searchBox.clearBtn.addEventListener('click', listener, { capture: true });
             searchBox.clearBtn._quickTagListener = listener;
@@ -1375,7 +1384,10 @@
         searchBox.input.value = [...inputTokens].join(' ').trim(); // 更新输入框
         // 触发 input 事件以通知其他监听器（包括 updateActiveStyles）
         searchBox.input.dispatchEvent(new Event('input', { bubbles: true }));
-        searchBox.input.focus();
+        const canHover = window.matchMedia('(hover: hover)').matches;
+        if (canHover) {
+            searchBox.input.focus();
+        }
     }
 
     /** 处理搜索标签按钮的右键点击事件，用于编辑搜索标签 */
@@ -2252,9 +2264,9 @@
     function fillThumbnailArea() {
         if (pageInfo.listDisplayMode && document.body.offsetHeight <= window.innerHeight) {
             throttledLoadNextPage();
-        } else if (cfg.thumbScroll && $i('gdt').clientHeight + 6 >= $i('gdt').scrollHeight) {
+        } else if (pageInfo.isGalleryPage && cfg.thumbScroll && $i('gdt').clientHeight + 6 >= $i('gdt').scrollHeight) {
             throttledLoadNextPage();
-        } else if (!cfg.thumbScroll && pageInfo.isGalleryPage && $i('gdt').getBoundingClientRect().bottom <= window.innerHeight) {
+        } else if (pageInfo.isGalleryPage && !cfg.thumbScroll && $i('gdt').getBoundingClientRect().bottom <= window.innerHeight) {
             throttledLoadNextPage();
         }
     }
