@@ -6,7 +6,7 @@
 // @name:ko             LOLICON Hentai 향상기
 // @name:ru             LOLICON Hentai Улучшатель
 // @namespace           https://greasyfork.org/scripts/516145
-// @version             2026.02.01
+// @version             2026.02.02
 // @description         E-Hentai/ExHentai Auto Window Adaptation, Adjustable Thumbnails (size/margin), Quick Favorite, Infinite Scroll, Load More Thumbnails, Quick Tag & Search Enhancer
 // @description:zh-CN   E-Hentai/ExHentai 自动适配窗口尺寸、缩略图调整（大小/间距）、快捷收藏、无限滚动、加载更多缩略图、快捷标签 & 搜索增强
 // @description:zh-TW   E-Hentai/ExHentai 自動適配視窗尺寸、縮圖調整（大小/間距）、快捷收藏、無限滾動、加載更多縮圖、快捷標籤 & 搜尋增強
@@ -1214,7 +1214,7 @@
                 min-width: 240px; min-height: 240px;
                 width: 360px; height: 360px;
                 padding: 6px 12px;
-                font-family: monospace; 
+                font-family: NSimSun, monospace; 
                 line-height: 1.2;
                 white-space: pre; 
             }
@@ -1248,7 +1248,7 @@
             btn.value = name;  // 按钮上显示的文本
             btn.title = tag;   // 鼠标悬停时显示的完整标签
             if (isActive(tag)) btn.classList.add('tag-active');
-            btn.addEventListener('click', () => toggleTag(tag));      // 左键点击：切换标签
+            btn.addEventListener('pointerup', (e) => toggleTag(e, tag));      // 左键点击：切换标签
             btn.addEventListener('contextmenu', (e) => removeTag(e, name)); // 右键点击：修改标签
             panel.append(btn);
         }
@@ -1284,8 +1284,8 @@
                 e.stopImmediatePropagation();
                 searchBox.input.value = '';
                 searchBox.input.dispatchEvent(new Event('input', { bubbles: true }));
-                const canHover = window.matchMedia('(hover: hover)').matches;
-                if (canHover) {
+                const isMouse = e?.pointerType === 'mouse';
+                if (isMouse) {
                     searchBox.input.focus();
                 }
             };
@@ -1366,7 +1366,7 @@
     }
 
     /** 处理搜索标签按钮的点击事件，在搜索框中添加或移除对应的标签 */
-    function toggleTag(tag) {
+    function toggleTag(e, tag) {
         if (!searchBox.input) return;
 
         const btnTokens = tokenize(tag); // 按钮对应的标签集合
@@ -1384,8 +1384,8 @@
         searchBox.input.value = [...inputTokens].join(' ').trim(); // 更新输入框
         // 触发 input 事件以通知其他监听器（包括 updateActiveStyles）
         searchBox.input.dispatchEvent(new Event('input', { bubbles: true }));
-        const canHover = window.matchMedia('(hover: hover)').matches;
-        if (canHover) {
+        const isMouse = e?.pointerType === 'mouse';
+        if (isMouse) {
             searchBox.input.focus();
         }
     }
@@ -1701,7 +1701,7 @@
                             : `${nsAbbr}:${tagName}$`;
 
                         // 交给统一的搜索词切换逻辑处理
-                        toggleTag(tagToken);
+                        toggleTag(e, tagToken);
                     }
                 };
 
