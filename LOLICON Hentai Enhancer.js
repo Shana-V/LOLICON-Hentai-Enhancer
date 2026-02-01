@@ -114,6 +114,13 @@
         listDisplayMode: $('.searchnav div:last-child select')?.value // 列表显示模式（m/p/l/e/t）
     };
 
+    /** 当前输入设备 */
+    let currentInputDevice = null;
+    document.addEventListener('pointerup', e => {
+        currentInputDevice = e.pointerType;
+    });
+
+
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
     // 设置面板
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -1248,7 +1255,7 @@
             btn.value = name;  // 按钮上显示的文本
             btn.title = tag;   // 鼠标悬停时显示的完整标签
             if (isActive(tag)) btn.classList.add('tag-active');
-            btn.addEventListener('pointerup', (e) => toggleTag(e, tag));      // 左键点击：切换标签
+            btn.addEventListener('click', () => toggleTag(tag));      // 左键点击：切换标签
             btn.addEventListener('contextmenu', (e) => removeTag(e, name)); // 右键点击：修改标签
             panel.append(btn);
         }
@@ -1284,8 +1291,7 @@
                 e.stopImmediatePropagation();
                 searchBox.input.value = '';
                 searchBox.input.dispatchEvent(new Event('input', { bubbles: true }));
-                const isMouse = e?.pointerType === 'mouse';
-                if (isMouse) {
+                if (currentInputDevice === 'mouse') {
                     searchBox.input.focus();
                 }
             };
@@ -1366,7 +1372,7 @@
     }
 
     /** 处理搜索标签按钮的点击事件，在搜索框中添加或移除对应的标签 */
-    function toggleTag(e, tag) {
+    function toggleTag(tag) {
         if (!searchBox.input) return;
 
         const btnTokens = tokenize(tag); // 按钮对应的标签集合
@@ -1384,8 +1390,7 @@
         searchBox.input.value = [...inputTokens].join(' ').trim(); // 更新输入框
         // 触发 input 事件以通知其他监听器（包括 updateActiveStyles）
         searchBox.input.dispatchEvent(new Event('input', { bubbles: true }));
-        const isMouse = e?.pointerType === 'mouse';
-        if (isMouse) {
+        if (currentInputDevice === 'mouse') {
             searchBox.input.focus();
         }
     }
@@ -1701,7 +1706,7 @@
                             : `${nsAbbr}:${tagName}$`;
 
                         // 交给统一的搜索词切换逻辑处理
-                        toggleTag(e, tagToken);
+                        toggleTag(tagToken);
                     }
                 };
 
