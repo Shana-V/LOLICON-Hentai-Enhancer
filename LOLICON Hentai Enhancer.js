@@ -114,10 +114,10 @@
         listDisplayMode: $('.searchnav div:last-child select')?.value // 列表显示模式（m/p/l/e/t）
     };
 
-    /** 当前输入设备 */
-    let currentInputDevice = null;
+    /** 当前输入设备 mouse/touch/pen */
+    let inputDevice = null;
     document.addEventListener('pointerup', e => {
-        currentInputDevice = e.pointerType;
+        inputDevice = e.pointerType;
     });
 
 
@@ -1245,19 +1245,21 @@
         // 遍历搜索标签对象，为每个条目创建一个按钮
         for (const [name, tag] of Object.entries(searchBox.tags)) {
             // 如果是 "@_"，则插入换行，不生成按钮
-            if (tag === '_') {
-                panel.append($el('br'));
-                continue;
-            }
-
             const btn = $el('input');
             btn.type = 'button';
-            btn.value = name;  // 按钮上显示的文本
-            btn.title = tag;   // 鼠标悬停时显示的完整标签
-            if (isActive(tag)) btn.classList.add('tag-active');
-            btn.addEventListener('click', () => toggleTag(tag));      // 左键点击：切换标签
             btn.addEventListener('contextmenu', (e) => removeTag(e, name)); // 右键点击：修改标签
-            panel.append(btn);
+            if (tag === '_') {
+                btn.value = '↵';
+                btn.dataset.name = name;
+                panel.append(btn);
+                panel.append($el('br'));
+            } else {
+                btn.value = name;  // 按钮上显示的文本
+                btn.title = tag;   // 鼠标悬停时显示的完整标签
+                if (isActive(tag)) btn.classList.add('tag-active');
+                btn.addEventListener('click', () => toggleTag(tag));      // 左键点击：切换标签
+                panel.append(btn);
+            }
         }
 
         // 创建“管理”按钮
@@ -1291,7 +1293,7 @@
                 e.stopImmediatePropagation();
                 searchBox.input.value = '';
                 searchBox.input.dispatchEvent(new Event('input', { bubbles: true }));
-                if (currentInputDevice === 'mouse') {
+                if (inputDevice === 'mouse') {
                     searchBox.input.focus();
                 }
             };
@@ -1366,7 +1368,7 @@
 
         // 遍历所有按钮（除了“+”按钮）
         panel.querySelectorAll('input[type="button"]').forEach(btn => {
-            if (btn.value === '+') return;
+            if (btn.value === '+' || btn.value === '↵') return;
             btn.classList.toggle('tag-active', isActive(btn.title));
         });
     }
@@ -1390,7 +1392,7 @@
         searchBox.input.value = [...inputTokens].join(' ').trim(); // 更新输入框
         // 触发 input 事件以通知其他监听器（包括 updateActiveStyles）
         searchBox.input.dispatchEvent(new Event('input', { bubbles: true }));
-        if (currentInputDevice === 'mouse') {
+        if (inputDevice === 'mouse') {
             searchBox.input.focus();
         }
     }
@@ -1539,7 +1541,7 @@
         const newTags = {};
         panel.querySelectorAll('input[type="button"]').forEach(btn => {
             if (btn.value === '+') return;
-            const key = btn.value;
+            const key = btn.dataset.name || btn.value;
             const val = searchBox.tags[key];
             if (val !== undefined) newTags[key] = val;
         });
