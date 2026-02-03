@@ -612,7 +612,8 @@
         applyChanges();
 
         // 如果这个复选框和展示逻辑有关，局部刷新控件
-        if (id === 'infiniteScrollInput' || id === 'moreThumbnailInput' || id === 'tagSearchGInput') {
+        const refreshKeys = ['infiniteScroll', 'moreThumbnail', 'tagSearchG', 'quickFavorite'];
+        if (refreshKeys.includes(id.replace(/Input$/, ''))) {
             const panel = $i('settings-panel');
             if (panel && typeof panel.refreshControls === 'function') {
                 panel.refreshControls();
@@ -2127,6 +2128,7 @@
 
             // 从缓存中移除，防止内存泄漏
             originalStates.delete(el);
+            el.removeAttribute('data-LOLICON-bound');
         }
     }
 
@@ -2184,6 +2186,8 @@
         // 遍历所有匹配元素
         $$(strategies[pageInfo.listDisplayMode]).forEach(el => {
             if (!el.onclick) return; // 无onclick则跳过
+            if (el.getAttribute('data-LOLICON-bound')) return;
+            el.setAttribute('data-LOLICON-bound', 'true');
 
             bindHoverEffect(el);
 
@@ -2199,12 +2203,11 @@
         // 从URL路径解析画廊ID和类型
         const matchGallery = window.location.pathname.match(/\/g\/(\d+)\/(\w+)/);
         if (!matchGallery) return;
-
-        // 拼接收藏请求地址
-        const favUrl = `${window.location.origin}/gallerypopups.php?gid=${matchGallery[1]}&t=${matchGallery[2]}&act=addfav`;
-
         // 获取画廊按钮容器元素
         const gdf = $i('gdf');
+
+        if (gdf.getAttribute('data-LOLICON-bound')) return;
+        gdf.setAttribute('data-LOLICON-bound', 'true');
 
         // 调整按钮容器样式，使内容居中且无左边距，设定固定高度和半透明背景
         gdf.style.paddingTop = '0';
@@ -2228,6 +2231,9 @@
             });
             iconDiv.style.marginLeft = '0';
         }
+
+        // 拼接收藏请求地址
+        const favUrl = `${window.location.origin}/gallerypopups.php?gid=${matchGallery[1]}&t=${matchGallery[2]}&act=addfav`;
 
         replaceOnClick(gdf, favUrl); // 替换点击事件绑定收藏弹窗
     }
