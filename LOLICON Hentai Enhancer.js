@@ -3289,6 +3289,8 @@
             div.id = 'scriptSettings';
             div.appendChild(btn);
             $i('nb').appendChild(div);
+            $i('nb').style.width = 'max-content';
+            $i('nb').style.gap = '12px';
         } else if (!cfg.scriptSettings && $i('scriptSettings')) {
             $i('scriptSettings').remove();
         }
@@ -3306,6 +3308,8 @@
             div.id = 'toggleEH';
             div.appendChild(btn);
             $i('nb').appendChild(div);
+            $i('nb').style.width = 'max-content';
+            $i('nb').style.gap = '12px';
         } else if (!cfg.toggleEH && $i('toggleEH')) {
             $i('toggleEH').remove();
         }
