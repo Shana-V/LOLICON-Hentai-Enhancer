@@ -6,13 +6,13 @@
 // @name:ko             LOLICON Hentai 향상기
 // @name:ru             LOLICON Hentai Улучшатель
 // @namespace           https://greasyfork.org/scripts/516145
-// @version             2026.02.12
-// @description         E-Hentai/ExHentai Auto Window Adaptation, Adjustable Thumbnails (size/margin), Quick Favorite, Infinite Scroll, Load More Thumbnails, Quick Tag & Search Enhancer
-// @description:zh-CN   E-Hentai/ExHentai 自动适配窗口尺寸、缩略图调整（大小/间距）、快捷收藏、无限滚动、加载更多缩略图、快捷标签 & 搜索增强
-// @description:zh-TW   E-Hentai/ExHentai 自動適配視窗尺寸、縮圖調整（大小/間距）、快捷收藏、無限滾動、加載更多縮圖、快捷標籤 & 搜尋增強
-// @description:ja      E-Hentai/ExHentai ウィンドウ自動適応、サムネイルサイズ・間隔調整、クイックお気に入り、無限スクロール、サムネイル追加読み込み、クイックタグ & 検索強化
-// @description:ko      E-Hentai/ExHentai 자동 창 크기 조절, 썸네일 크기/간격 조절, 빠른 즐겨찾기, 무한 스크롤, 썸네일 더보기, 빠른 태그 & 검색 강화
-// @description:ru      E-Hentai/ExHentai Автоматическая подгонка окна, Настройка миниатюр (размер/отступ), Быстрое добавление в избранное, Бесконечная прокрутка, Загрузка дополнительных миниатюр, Быстрые теги & поиск улучшены
+// @version             2026.02.24
+// @description         E-Hentai/ExHentai Auto Window Adaptation, Adjustable Thumbnails (size/margin), Quick Favorite, Infinite Scroll, Load More Thumbnails, Quick Tag & Search Enhancer, Thumbnail Hover Zoom
+// @description:zh-CN   E-Hentai/ExHentai 自动适配窗口尺寸、缩略图调整（大小/间距）、快捷收藏、无限滚动、加载更多缩略图、快捷标签 & 搜索增强、缩略图悬浮放大
+// @description:zh-TW   E-Hentai/ExHentai 自動適配視窗尺寸、縮圖調整（大小/間距）、快捷收藏、無限滾動、加載更多縮圖、快捷標籤 & 搜尋增強、縮略圖懸浮放大
+// @description:ja      E-Hentai/ExHentai ウィンドウ自動適応、サムネイルサイズ・間隔調整、クイックお気に入り、無限スクロール、サムネイル追加読み込み、クイックタグ & 検索強化、サムネイルホバー拡大
+// @description:ko      E-Hentai/ExHentai 자동 창 크기 조절, 썸네일 크기/간격 조절, 빠른 즐겨찾기, 무한 스크롤, 썸네일 더보기, 빠른 태그 & 검색 강화, 썸네일 호버 확대
+// @description:ru      E-Hentai/ExHentai Автоматическая подгонка окна, Настройка миниатюр (размер/отступ), Быстрое добавление в избранное, Бесконечная прокрутка, Загрузка дополнительных миниатюр, Быстрые теги & поиск улучшены, Увеличение при наведении на миниатюру
 // @icon                https://e-hentai.org/favicon.ico
 // @match               *://e-hentai.org/*
 // @match               *://exhentai.org/*
@@ -26,8 +26,8 @@
 // @grant               GM_deleteValue
 // @grant               GM_registerMenuCommand
 // @noframes
-// @downloadURL https://update.greasyfork.org/scripts/516145/LOLICON%20Hentai%20%E5%A2%9E%E5%BC%BA%E5%99%A8.user.js
-// @updateURL https://update.greasyfork.org/scripts/516145/LOLICON%20Hentai%20%E5%A2%9E%E5%BC%BA%E5%99%A8.meta.js
+// @downloadURL https://update.greasyfork.org/scripts/516145/LOLICON.user.js
+// @updateURL https://update.greasyfork.org/scripts/516145/LOLICON.meta.js
 // ==/UserScript==
 
 (function () {
@@ -134,7 +134,23 @@
         hoverScale: { def: 2, step: 0.01, min: 1, max: 10 },
         hoverDelay: { def: 1, step: 0.01, min: 0.5, max: 10 },
         hoverLoadLargeImage: { def: false },
+        scriptSettings: { def: true },
         toggleEH: { def: false },
+    };
+
+    /**  EH 标签命名空间 缩写映射表 */
+    const tag_nsMap = {
+        artist: 'a',
+        character: 'c',
+        cosplayer: 'cos',
+        female: 'f',
+        group: 'g',
+        language: 'l',
+        male: 'm',
+        mixed: 'x',
+        other: 'o',
+        parody: 'p',
+        reclass: 'r',
     };
 
     // 脚本样式
@@ -151,27 +167,27 @@
             #lolicon-settings-panel {
                 display: flex;
                 flex-direction: column;
-                position: fixed; 
-                top: 12px; 
-                right: 12px; 
+                position: fixed;
+                top: 36px;
+                right: 24px;
                 background-color: rgba(255, 255, 255, 0.8);
-                border-radius: 12px; 
-                box-shadow: 0 0 12px rgba(0,0,0,0.6); 
-                z-index: 999999; 
-                font-size: 14px; 
-                color: #222; 
+                border-radius: 12px;
+                box-shadow: 0 0 12px rgba(0,0,0,0.6);
+                z-index: 999999;
+                font-size: 14px;
+                color: #222;
                 min-width: 180px;
                 min-height: 180px;
-                max-height: calc(100vh - 24px); 
+                max-height: calc(100vh - 60px);
                 overflow: hidden;
                 backdrop-filter: blur(2px);
             }
             .lolicon-settings-header { flex-shrink: 0; }
             #lolicon-settings-panel h3 {
-                margin: 0; 
+                margin: 0;
                 padding: 18px 6px 6px 6px;
-                font-size: 18px; 
-                color: #00AAFF; 
+                font-size: 18px;
+                color: #00AAFF;
                 text-align: center;
                 user-select: none;
             }
@@ -215,7 +231,7 @@
                 padding: 4px;
                 border: 2px solid #666;
                 border-radius: 6px;
-                box-sizing: border-box; 
+                box-sizing: border-box;
                 margin-left: auto;
             }
             #lolicon-settings-panel input[type='checkbox'] {
@@ -265,6 +281,15 @@
             #lolicon-tag-panel > input[type="button"] { margin: 2px; }
             input[type="button"].lolicon-tag-active,
             input[type="button"].lolicon-tag-active:hover { border: 2px solid currentColor !important; }
+            input[type="button"].lolicon-tag-or,
+            input[type="button"].lolicon-tag-or:hover { border: 2px solid #EA0 !important; }
+            input[type="button"].lolicon-tag-exclusion,
+            input[type="button"].lolicon-tag-exclusion:hover { border: 2px solid #E20 !important; }
+            input[type="button"].lolicon-tag-mixed,
+            input[type="button"].lolicon-tag-mixed:hover {
+                border: 2px solid !important;
+                border-image: linear-gradient(to right, currentColor, #EA0, #EA0, #E20) 1 !important;
+            }
             #lolicon-tag-manage-panel {
                 position: fixed; top: 50%; left: 50%;
                 transform: translate(-50%, -50%);
@@ -283,9 +308,9 @@
             }
             #lolicon-tag-manage-textarea {
                 min-width: 240px; min-height: 240px;
-                width: 360px; height: 360px;
+                width: 36vw; height: 36vh;
                 padding: 6px 12px;
-                font-family: NSimSun, monospace; 
+                font-family: NSimSun, monospace;
                 line-height: 1.2;
                 white-space: pre;
                 user-select: text;
@@ -348,11 +373,11 @@
         loading: /* css */ `
             .lolicon-loading-container {
                 grid-column: 1 / -1;
-                box-sizing: border-box; 
+                box-sizing: border-box;
                 padding: 6px 0;
                 width: 100%;
                 color: inherit;
-                min-height: 36px; 
+                min-height: 36px;
             }
             div.lolicon-loading-container {
                 display: flex;
@@ -367,11 +392,11 @@
             }
             .lolicon-loading-spinner {
                 display: inline-block;
-                width: 16px; 
+                width: 16px;
                 height: 16px;
                 border: 4px solid rgba(120, 120, 120, 0.36);
                 border-radius: 50%;
-                border-top-color: currentColor; 
+                border-top-color: currentColor;
                 animation: lolicon-loading-spin 0.6s linear infinite;
                 vertical-align: middle;
             }
@@ -583,6 +608,14 @@
             'ko': '호버 시 대형 이미지 로드',
             'ru': 'Загрузка большой картинки при наведении',
         },
+        'scriptSettings': {
+            'en': 'Script Settings Button',
+            'zh-CN': '脚本设置按钮',
+            'zh-TW': '腳本設定按鈕',
+            'ja': 'スクリプト設定ボタン',
+            'ko': '스크립트 설정 버튼',
+            'ru': 'Кнопка настроек скрипта',
+        },
         'toggleEH': {
             'en': 'EH/ExH Switch Button',
             'zh-CN': 'EH/ExH 切换按钮',
@@ -675,33 +708,33 @@
             'en': 'Loading...',
             'zh-CN': '正在加载...',
             'zh-TW': '正在載入...',
-            'ja': '読込中...',
+            'ja': '読み込み中...',
             'ko': '로드 중...',
             'ru': 'Загрузка...',
         },
         'maxPageReached': {
-            'en': '--- Page limit · Click to continue ---',
-            'zh-CN': '--- 已达页数上限 · 点击继续 ---',
-            'zh-TW': '--- 已達頁數上限 · 點擊繼續 ---',
-            'ja': '--- ページ上限 · クリックで続行 ---',
-            'ko': '--- 페이지 제한 · 클릭하여 계속 ---',
-            'ru': '--- Лимит страниц · Продолжить ---',
+            'en': '--- Load more ---',
+            'zh-CN': '--- 加载更多 ---',
+            'zh-TW': '--- 載入更多 ---',
+            'ja': '--- さらに読み込む ---',
+            'ko': '--- 더 불러오기 ---',
+            'ru': '--- Загрузить ещё ---',
         },
         'noMoreContent': {
             'en': '--- No more content ---',
-            'zh-CN': '--- 到底了 ---',
-            'zh-TW': '--- 到底了 ---',
-            'ja': '--- 終わりです ---',
-            'ko': '--- 끝입니다 ---',
-            'ru': '--- Конец ---',
+            'zh-CN': '--- 没有更多内容 ---',
+            'zh-TW': '--- 沒有更多內容 ---',
+            'ja': '--- これ以上ありません ---',
+            'ko': '--- 더 이상 없음 ---',
+            'ru': '--- Контент закончился ---',
         },
         'loadFailedRetry': {
-            'en': 'Load failed, click to retry',
-            'zh-CN': '加载失败，点击重试',
-            'zh-TW': '載入失敗，點擊重試',
-            'ja': '読込失敗、クリックして再試行',
-            'ko': '로드 실패, 다시 시도하려면 클릭',
-            'ru': 'Ошибка загрузки, нажмите для повтора',
+            'en': '--- Load failed · Retry ---',
+            'zh-CN': '--- 加载失败 · 重试 ---',
+            'zh-TW': '--- 載入失敗 · 重試 ---',
+            'ja': '--- 読み込み失敗 · 再試行 ---',
+            'ko': '--- 로드 실패 · 다시 시도 ---',
+            'ru': '--- Ошибка · Повторить ---',
         },
     };
 
@@ -884,7 +917,7 @@
         }
 
         if (toggleEHInfo.allowed) {
-            controlNames.push('toggleEH');
+            controlNames.push('scriptSettings', 'toggleEH');
         }
 
         const htmlPieces = [];
@@ -1155,7 +1188,7 @@
                     inputTarget.setAttribute('size', '90');
                 }
             }
-            $('.ido > div:nth-child(3) > form:nth-child(1) > div:nth-child(2) > input:nth-child(1)').style.width = (isLargerWidth ? '1230px' : '');
+            $('form[action*="favorites.php"] input[name="f_search"]').style.width = (isLargerWidth ? '1230px' : '');
         }
 
         if (layout.columnsS != layout.OLDcolumnsS && cfg.liveURLUpdate && !pageInfo.isPopularPage && !pageInfo.isFavoritesPage) {
@@ -1266,7 +1299,7 @@
 
                 const glink = el.querySelector('.glink');
                 const url = glink?.closest('a')?.href;
-                
+
                 const urlElement = el.querySelector(strategies[pageInfo.listDisplayMode]);
                 const match = urlElement?.href.match(/\/g\/(\d+)\//);
                 const gid = match ? Number(match[1]) : null;
@@ -1849,8 +1882,8 @@
         }
 
         // 无元素或已绑定则跳过
-        if (!thumbEl || thumbEl.getAttribute('data-lolicon-bound')) return;
-        thumbEl.setAttribute('data-lolicon-bound', 'true');
+        if (!thumbEl || thumbEl.getAttribute('data-LOLICON-bound')) return;
+        thumbEl.setAttribute('data-LOLICON-bound', 'true');
 
         // 悬浮显示大图
         thumbEl.addEventListener('mouseenter', () => {
@@ -1883,6 +1916,18 @@
         input: null, // 搜索框 DOM
         searchBtn: null, // “搜索”按钮 DOM
         clearBtn: null, // “清空”按钮 DOM
+        cache: {
+            tokenMap: new Map(), // 存储 Token 规范化结果
+            value: null, // 记录上一次解析的文本
+        },
+    };
+
+    /** 快捷标签正则集 */
+    const TAG_RE = {
+        TOKEN: /[^"\s]*"[^"]*"|[^\s"]+/g,
+        CJK: /[\u1100-\u115F\u2E80-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE10-\uFE19\uFE30-\uFE6F\uFF00-\uFF60\uFFE0-\uFFE6]/,
+        PRE: /^[~-]/,
+        STRUCT: /^([~-]?)([a-z]+):(.*)$/i,
     };
 
     /** 加载已存储标签（若不存在则写入默认初始值、旧格式迁移新格式） */
@@ -1892,8 +1937,9 @@
         if (!data || (Array.isArray(data) && data.length === 0)) {
             data = [
                 { type: 'tag', name: 'LOLI', tag: 'f:lolicon$' },
-                { type: 'tag', name: 'LOLI-AI', tag: 'f:lolicon$ -o:"ai generated$"' },
-                { type: 'tag', name: 'LOLI|SB+NP', tag: '~f:lolicon$ ~f:"small breasts$" o:"no penetration$"' }
+                { type: 'tag', name: 'MLP', tag: 'p:"my little pony friendship is magic$"' },
+                { type: 'tag', name: '-AI', tag: '-o:"ai generated$"' },
+                { type: 'tag', name: 'LOLI|SB', tag: '~f:lolicon$ ~f:"small breasts$"' }
             ];
             GM_setValue(STORAGE_KEY, data);
         } else if (!Array.isArray(data)) { // 旧对象格式迁移
@@ -1909,21 +1955,19 @@
 
     /** 将搜索字符串分割成独立的 token（标签） */
     function tokenize(str) {
-        return new Set(str.match(/[^"\s]*"[^"]*"|[^\s"]+/g) || []);
+        return str.match(TAG_RE.TOKEN) || [];
     }
 
     /** 计算字符串在等宽字体下的视觉宽度 */
     function visualWidth(str) {
-        return Array.from(str).reduce((w, ch) =>
-            w + (/[\u1100-\u115F\u2E80-\uA4CF\uAC00-\uD7A3\uF900-\uFAFF\uFE10-\uFE19\uFE30-\uFE6F\uFF00-\uFF60\uFFE0-\uFFE6]/.test(ch) ? 2 : 1)
-            , 0);
+        return Array.from(str).reduce((w, ch) => w + (TAG_RE.CJK.test(ch) ? 2 : 1), 0);
     }
 
     /** 快捷标签面板 */
     function quickTagPanel() {
         const panel = $i('lolicon-tag-panel');
         if (pageInfo.isFavoritesPage) {
-            searchBox.input = $('.ido > div:nth-child(3) > form:nth-child(1) > div:nth-child(2) > input:nth-child(1)');
+            searchBox.input = $('form[action*="favorites.php"] input[name="f_search"]');
         } else {
             searchBox.input = $i('f_search');
         }
@@ -1941,19 +1985,31 @@
         } else {
             if (panel) panel.remove();
 
-            if (searchBox.input && searchBox.input._quickTagListeners) {
-                const { refresh, dblclick } = searchBox.input._quickTagListeners;
+            if (searchBox.input && searchBox.input._quickTagHandlers) {
+                const { refresh, dblclick } = searchBox.input._quickTagHandlers;
                 searchBox.input.removeEventListener('input', refresh);
                 searchBox.input.removeEventListener('focus', refresh);
                 searchBox.input.removeEventListener('click', refresh);
                 searchBox.input.removeEventListener('dblclick', dblclick);
-                delete searchBox.input._quickTagListeners;
+                delete searchBox.input._quickTagHandlers;
             }
-            if (searchBox.clearBtn && searchBox.clearBtn._quickTagListener) {
-                searchBox.clearBtn.removeEventListener('click', searchBox.clearBtn._quickBtnListener, { capture: true });
-                delete searchBox.clearBtn._quickTagListener;
+            if (searchBox.clearBtn && searchBox.clearBtn._quickTagHandler) {
+                searchBox.clearBtn.removeEventListener('click', searchBox.clearBtn._quickTagHandler, { capture: true });
+                delete searchBox.clearBtn._quickTagHandler;
             }
         }
+    }
+
+    /** 当输入框内容发生实质变化时 刷新搜索缓存 */
+    function refreshSearchCache() {
+        const val = searchBox.input ? searchBox.input.value : '';
+        if (searchBox.cache.value === val) {
+            return searchBox.cache.tokenMap;
+        }
+
+        searchBox.cache.tokenMap = getSearchContext(val);
+        searchBox.cache.value = val;
+        return searchBox.cache.tokenMap;
     }
 
     /** 构建搜索标签按钮面板并将其插入到页面中 */
@@ -1964,21 +2020,24 @@
         panel = $el('div');
         panel.id = 'lolicon-tag-panel';
 
+        const fragment = document.createDocumentFragment();
+
         // 遍历搜索标签对象，为每个条目创建一个按钮
         searchBox.tags.forEach((item, index) => {
             const btn = $el('input');
             btn.type = 'button';
-            btn.dataset.index = index;
-            btn.addEventListener('contextmenu', (e) => removeTag(e, index)); // 右键点击：修改标签
+            btn.dataset.index = index; // 存储索引供事件代理使用
+
             if (item.type === 'break') {
                 btn.value = '↵';
-                panel.append(btn, $el('br'));
+                btn.dataset.type = 'break';
+                fragment.append(btn, $el('br'));
             } else {
                 btn.value = item.name; // 按钮上显示的文本
+                btn.dataset.type = 'tag';
                 btn.title = item.tag; // 鼠标悬停时显示的完整标签
-                if (isActive(item.tag)) btn.classList.add('lolicon-tag-active');
-                btn.addEventListener('click', () => toggleTag(item.tag)); // 左键点击：切换标签
-                panel.append(btn);
+                btn.draggable = true; // 开启拖拽
+                fragment.append(btn);
             }
         });
 
@@ -1986,39 +2045,68 @@
         const addBtn = $el('input');
         addBtn.type = 'button';
         addBtn.value = '+';
-        addBtn.title = translate('manageCustomTags');
-        addBtn.addEventListener('click', showManagePanel);
-        addBtn.addEventListener('contextmenu', (e) => removeTag(e)); // 右键点击：修改标签
-        panel.append(addBtn);
+        addBtn.dataset.type = 'manage';
+        fragment.append(addBtn);
+
+        panel.append(fragment);
+
+        // 点击处理
+        panel.addEventListener('click', (e) => {
+            const target = e.target;
+            if (target.type !== 'button') return;
+
+            if (target.dataset.type === 'tag') {
+                toggleTag(target.title);
+            } else if (target.dataset.type === 'manage') {
+                showManagePanel();
+            }
+        });
+
+        // 滚轮处理
+        panel.addEventListener('wheel', (e) => {
+            const target = e.target;
+            if (target.type === 'button' && target.title) {
+                e.preventDefault();
+                handleTagWheel(e, target.title);
+            }
+        }, { passive: false });
+
+        // 右键处理
+        panel.addEventListener('contextmenu', (e) => {
+            const target = e.target;
+            if (target.type === 'button') {
+                e.preventDefault();
+                showManagePanel(target.dataset.index ? parseInt(target.dataset.index) : undefined);
+            }
+        });
 
         searchBox.container.append(panel);
+        updateActiveStyles();
         enableDragSort(panel);
     }
 
     /** 绑定可开关的事件：input 和 clearBtn 为页面上的相关元素绑定事件监听器 */
     function bindToggleableEvents() {
-        if (searchBox.input && !searchBox.input._quickTagListeners) {
+        if (searchBox.input && !searchBox.input._quickTagHandlers) {
             const refresh = () => updateActiveStyles();
             searchBox.input.addEventListener('input', refresh);
             searchBox.input.addEventListener('focus', refresh);
             searchBox.input.addEventListener('click', refresh);
             searchBox.input.addEventListener('dblclick', selectTokenByDoubleClick);
 
-            searchBox.input._quickTagListeners = { refresh, dblclick: selectTokenByDoubleClick };
+            searchBox.input._quickTagHandlers = { refresh, dblclick: selectTokenByDoubleClick };
         }
 
-        if (searchBox.clearBtn && !searchBox.clearBtn._quickTagListener) {
+        if (searchBox.clearBtn && !searchBox.clearBtn._quickTagHandler) {
             const listener = (e) => {
                 e.preventDefault();
                 e.stopImmediatePropagation();
                 searchBox.input.value = '';
                 searchBox.input.dispatchEvent(new Event('input', { bubbles: true }));
-                if (inputDevice === 'mouse') {
-                    searchBox.input.focus();
-                }
+                if (inputDevice === 'mouse') searchBox.input.focus();
             };
             searchBox.clearBtn.addEventListener('click', listener, { capture: true });
-            searchBox.clearBtn._quickTagListener = listener;
+            searchBox.clearBtn._quickTagHandler = listener;
         }
     }
 
@@ -2067,57 +2155,157 @@
         }
     }
 
-    /** 检查指定的标签当前是否在搜索框中 */
-    function isActive(tag) {
-        if (!searchBox.input) return false;
+    /** 标准化标签：将所有全拼命名空间统一转换为 EH 缩写，以便等效比较 */
+    function normalizeToken(token) {
+        // 匹配：可选的修饰符(~或-) + 命名空间(字母) + 冒号 + 剩余标签内容
+        const match = token.match(TAG_RE.STRUCT);
+        if (match) {
+            const modifier = match[1]; // 如 "~" 或 "-"
+            const ns = match[2].toLowerCase(); // 如 "female" 或 "f"
+            const rest = match[3]; // 如 "lolicon$" 或 '"small breasts$"'
 
-        const btnTokens = tokenize(tag); // 按钮上的标签集合
-        const inputTokens = tokenize(searchBox.input.value); // 输入框中的标签集合
-
-        // 如果输入框中包含按钮的所有标签，则激活
-        return [...btnTokens].every((t) => inputTokens.has(t));
+            // 如果该命名空间在映射表中有对应缩写（如 female -> f），则转换；否则保持原样
+            const nsAbbr = tag_nsMap[ns] || ns;
+            return `${modifier}${nsAbbr}:${rest}`;
+        }
+        return token; // 如果不是带命名空间的标签，则直接返回原字符串
     }
 
-    /** 根据当前搜索框的内容，更新所有搜索标签按钮的 'lolicon-tag-active' 类 */
+    /** 解析搜索内容并返回状态 Map */
+    function getSearchContext(value) {
+        const tokens = tokenize(value);
+        const map = new Map();
+
+        for (const t of tokens) {
+            // 提取核心词（去除前缀修饰符）
+            const core = normalizeToken(t).replace(TAG_RE.PRE, '');
+
+            // 确定状态：1:正常, 2:或(~), 3:排除(-)
+            let state = 1;
+            if (t.startsWith('~')) state = 2;
+            else if (t.startsWith('-')) state = 3;
+            map.set(core, state);
+        }
+        return map;
+    }
+
+    /** 获取标签当前状态：0:无, 1:正常, 2:或(~), 3:排除(-), 4:全在但符号不一 */
+    function getTagState(tag, inputMap) {
+        if (!searchBox.input || !inputMap || inputMap.size === 0) return 0;
+
+        const btnTokens = tokenize(tag);
+        const states = btnTokens.map((bt) => {
+            const core = normalizeToken(bt).replace(TAG_RE.PRE, '');
+            return inputMap.get(core) || 0;
+        });
+
+        // 只要有一个标签不存在 (0)，整个按钮就视为未激活 (0)
+        if (states.includes(0)) return 0;
+
+        // 全部都在，检查符号是否统一
+        const firstState = states[0];
+        const isAllSame = states.every(s => s === firstState);
+        return isAllSame ? firstState : 4; // 符号不统一返回 4
+    }
+
+    /** 根据当前搜索框的内容，更新所有搜索标签按钮边框样式 */
     function updateActiveStyles() {
         const panel = $i('lolicon-tag-panel');
         if (!panel || !searchBox.input) return;
 
-        // 遍历所有按钮（除了“+”按钮）
-        panel.querySelectorAll('input[type="button"]').forEach((btn) => {
-            if (btn.value === '+' || btn.value === '↵') return;
-            btn.classList.toggle('lolicon-tag-active', isActive(btn.title));
-        });
+        const inputMap = refreshSearchCache();
+
+        // 批量更新按钮样式（除了'+''↵'按钮）
+        const btns = panel.querySelectorAll('input[type="button"]');
+        for (const btn of btns) {
+            if (!btn.title) continue;
+
+            const state = getTagState(btn.title, inputMap);
+
+            btn.classList.toggle('lolicon-tag-active', state === 1);
+            btn.classList.toggle('lolicon-tag-or', state === 2);
+            btn.classList.toggle('lolicon-tag-exclusion', state === 3);
+            btn.classList.toggle('lolicon-tag-mixed', state === 4);
+        }
     }
 
     /** 处理搜索标签按钮的点击事件，在搜索框中添加或移除对应的标签 */
     function toggleTag(tag) {
         if (!searchBox.input) return;
 
-        const btnTokens = tokenize(tag); // 按钮对应的标签集合
-        const inputTokens = tokenize(searchBox.input.value); // 输入框现有标签
+        // 获取按钮代表的标签集合（可能有多个词），并进行标准化处理
+        const btnTokens = tokenize(tag);
+        const btnNorms = btnTokens.map(t => normalizeToken(t).replace(TAG_RE.PRE, ''));
+        // 获取输入框现有的所有标签，并进行标准化处理
+        let inputTokens = tokenize(searchBox.input.value);
+        const inputNorms = inputTokens.map(t => normalizeToken(t).replace(TAG_RE.PRE, ''));
 
-        // 判断是否所有标签都存在
-        const allExist = [...btnTokens].every((t) => inputTokens.has(t));
+        // 只有当按钮的【所有词】都在输入框内时，才执行删除；否则补全缺失的词
+        const allExists = btnNorms.every(bn => inputNorms.includes(bn));
 
-        if (allExist) {
-            btnTokens.forEach((t) => inputTokens.delete(t)); // 删除标签
+        if (allExists) {
+            inputTokens = inputTokens.filter((inTok) => {
+                const inNorm = normalizeToken(inTok).replace(TAG_RE.PRE, '');
+                return !btnNorms.includes(inNorm);
+            }); // 删除标签
         } else {
-            btnTokens.forEach((t) => inputTokens.add(t)); // 添加标签
+            btnTokens.forEach((bt) => {
+                const btNorm = normalizeToken(bt).replace(TAG_RE.PRE, '');
+                if (!inputNorms.includes(btNorm)) inputTokens.push(bt);
+            }); // 添加标签
         }
 
-        searchBox.input.value = [...inputTokens].join(' ').trim(); // 更新输入框
+        searchBox.input.value = inputTokens.join(' ').trim(); // 更新输入框
         // 触发 input 事件以通知其他监听器（包括 updateActiveStyles）
         searchBox.input.dispatchEvent(new Event('input', { bubbles: true }));
-        if (inputDevice === 'mouse') {
-            searchBox.input.focus();
-        }
+        if (inputDevice === 'mouse') searchBox.input.focus();
     }
 
-    /** 处理搜索标签按钮的右键点击事件，用于编辑搜索标签 */
-    function removeTag(e, index) {
+    /** 处理搜索标签按钮的滚轮事件，切换标签状态 */
+    function handleTagWheel(e, tag) {
         e.preventDefault();
-        showManagePanel(index);
+        if (!searchBox.input) return;
+
+        const tokens = tokenize(searchBox.input.value);
+        const inputMap = refreshSearchCache();
+
+        let currentState = getTagState(tag, inputMap);
+        if (currentState === 0) currentState = 1;
+
+        const nextState = e.deltaY < 0
+            ? (currentState % 3) + 1
+            : ((currentState - 2 + 3) % 3) + 1;
+
+        const btnTokens = tokenize(tag);
+        const targetMap = new Map();
+        btnTokens.forEach((bt) => {
+            const base = bt.replace(TAG_RE.PRE, '');
+            let final;
+            if (nextState === 1) final = base;
+            else if (nextState === 2) final = `~${base}`;
+            else if (nextState === 3) final = `-${base}`;
+            targetMap.set(normalizeToken(base), final);
+        });
+
+        // 遍历输入框，如果匹配到核心词，就地替换
+        const matchedNorms = new Set();
+        const nextInputTokens = tokens.map((inTok) => {
+            const inNorm = normalizeToken(inTok).replace(TAG_RE.PRE, '');
+            if (targetMap.has(inNorm)) {
+                matchedNorms.add(inNorm);
+                return targetMap.get(inNorm); // 替换成带新前缀的词
+            }
+            return inTok; // 不相关的词保持原样
+        });
+
+        // 如果按钮里有些词在输入框里原本不存在，则推入末尾
+        targetMap.forEach((finalValue, normKey) => {
+            if (!matchedNorms.has(normKey)) nextInputTokens.push(finalValue);
+        });
+
+        searchBox.input.value = nextInputTokens.join(' ').trim();
+        searchBox.input.dispatchEvent(new Event('input', { bubbles: true }));
+        if (inputDevice === 'mouse') searchBox.input.focus();
     }
 
     /** 显示用于编辑所有搜索标签的管理面板（模态框） */
@@ -2226,7 +2414,7 @@
         let dragging = null;
 
         panel.querySelectorAll('input[type="button"]').forEach((btn) => {
-            if (btn.value === '+') return; // "+" 不参与排序
+            if (btn.dataset.type === 'manage') return; // "+" 不参与排序
 
             btn.draggable = true;
 
@@ -2262,7 +2450,7 @@
     function saveOrderFromPanel(panel) {
         const newOrder = [];
         panel.querySelectorAll('input[type="button"]').forEach((btn) => {
-            if (btn.value === '+') return;
+            if (btn.dataset.type === 'manage') return;
             const index = Number(btn.dataset.index);
             const item = searchBox.tags[index];
             if (item) newOrder.push(item);
@@ -2281,16 +2469,16 @@
         const cursor = input.selectionStart ?? 0; // 获取当前光标位置
         const items = tokenize(value);
 
-        let pos = 0; // 记录当前检查的 token 在字符串中的起始位置
+        let searchFrom = 0;
         for (const item of items) {
-            const start = pos;
-            const end = pos + item.length;
+            const start = value.indexOf(item, searchFrom);
+            const end = start + item.length;
             // 判断光标是否在该 token 的范围内
-            if (cursor >= start && cursor <= end) {
+            if (cursor >= start && cursor < end) {
                 input.setSelectionRange(start, end); // 选中该 token
                 break;
             }
-            pos = end + 1; // 移动到下一个 token 的起始位置（跳过一个空格）
+            searchFrom = end;
         }
     }
 
@@ -2322,72 +2510,97 @@
     // 8. 画廊标签搜索
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
-    /**  EH 标签命名空间 缩写映射表 */
-    const tag_nsMap = {
-        artist: 'a',
-        character: 'c',
-        cosplayer: 'cos',
-        female: 'f',
-        group: 'g',
-        language: 'l',
-        male: 'm',
-        mixed: 'x',
-        other: 'o',
-        parody: 'p',
-        reclass: 'r',
+    /** 画廊搜索框模板（复刻 EH 原生结构） */
+    const G_SEARCH_HTML = /* html */ `
+        <h1 class="ih"></h1><div id="searchbox" class="idi"><form method="get" style="margin:0px; padding:0px">
+        <input type="hidden" id="f_cats" name="f_cats" value="0">
+        <table class="itc"><tbody><tr>
+        <td><div id="cat_2" class="cs ct2">Doujinshi</div></td>
+        <td><div id="cat_4" class="cs ct3">Manga</div></td>
+        <td><div id="cat_8" class="cs ct4">Artist CG</div></td>
+        <td><div id="cat_16" class="cs ct5">Game CG</div></td>
+        <td><div id="cat_512" class="cs cta">Western</div></td>
+        </tr><tr>
+        <td><div id="cat_256" class="cs ct9">Non-H</div></td>
+        <td><div id="cat_32" class="cs ct6">Image Set</div></td>
+        <td><div id="cat_64" class="cs ct7">Cosplay</div></td>
+        <td><div id="cat_128" class="cs ct8">Asian Porn</div></td>
+        <td><div id="cat_1" class="cs ct1">Misc</div></td>
+        </tr></tbody></table>
+        <div><input type="text" id="f_search" name="f_search" placeholder="Search Keywords" size="90" maxlength="200"><input type="submit" value="Search"><input type="button" value="Clear"></div>
+        <div>[<a href="#" id="adv_toggle">Show Advanced Options</a>]</div>
+        <div id="advdiv" style="display: none;"></div></form></div>
+    `;
+
+    /** 画廊搜索框高级选项模板 */
+    const G_SEARCH_ADV_HTML = /* html */ `
+        <input type="hidden" id="advsearch" name="advsearch" value="1">
+        <div class="searchadv"><div>
+        <div><label class="lc"><input type="checkbox" name="f_sh"><span></span> Browse Expunged Galleries</label></div>
+        <div><label class="lc"><input type="checkbox" name="f_sto"><span></span> Require Gallery Torrent</label></div>
+        </div><div>
+        <div>Between <input type="text" id="f_spf" name="f_spf" size="4" maxlength="4" style="width:30px"> and <input type="text" id="f_spt" name="f_spt" size="4" maxlength="4" style="width:30px"> pages</div>
+        <div>Minimum Rating: <select id="f_srdd" name="f_srdd"><option value="0">Any Rating</option><option value="2">2 Stars</option><option value="3">3 Stars</option><option value="4">4 Stars</option><option value="5">5 Stars</option></select></div>
+        </div><div>
+        <div>Disable custom filters for:</div>
+        <div><label class="lc"><input type="checkbox" name="f_sfl"><span></span> Language</label></div>
+        <div><label class="lc"><input type="checkbox" name="f_sfu"><span></span> Uploader</label></div>
+        <div><label class="lc"><input type="checkbox" name="f_sft"><span></span> Tags</label></div>
+        </div></div>
+    `;
+
+    /** 标签解析器 */
+    const tagTokenFromHref = (href) => {
+        if (!href) return null;
+
+        // 从 href 提取标签 命名空间:标签名
+        const match = href.match(/\/tag\/([^:]+):(.+)$/);
+        if (!match) return null;
+        const nsAbbr = tag_nsMap[match[1]] || match[1]; // 映射为 EH 搜索缩写
+        let tagName = decodeURIComponent(match[2].replace(/\+/g, ' ')); // + 转空格
+
+        // 如果 tagName 包含空格，用双引号括起来并把 $ 放入引号内
+        return /\s/.test(tagName)
+            ? `${nsAbbr}:"${tagName}$"`
+            : `${nsAbbr}:${tagName}$`;
+    };
+
+    /** 画廊标签交互处理 (单击 滚动) */
+    const tagInteractG = (e) => {
+        const tagList = $i('taglist');
+        const a = e.target.closest('a');
+        if (!a || !tagList || !tagList.contains(a)) return;
+
+        // 获取原始路径
+        const tagToken = tagTokenFromHref(a.getAttribute('href'));
+        if (!tagToken) return;
+
+        e.preventDefault();
+        $i('toppane').style.display = 'block';
+
+        if (e.type === 'click') {
+            toggleTag(tagToken);
+        } else if (e.type === 'wheel') {
+            handleTagWheel(e, tagToken);
+        }
     };
 
     /** 构建并插入一个搜索框到画廊详情页 */
     function tagSearchG() {
+        const tagList = $i('taglist');
+
         if (cfg.tagSearchG && !$i('toppane')) {
             // 创建搜索容器
             const searchContainer = $el('div');
             searchContainer.id = 'toppane';
             searchContainer.style.display = 'none'; // 默认隐藏，点击标签时再显示
 
-            // 插入到 #gleft 前方，使搜索框位于页面顶部合适位置
-            const insertPoint = $('#gleft');
-            insertPoint.parentNode.insertBefore(searchContainer, insertPoint);
+            const gLeft = $i('gleft');
+            gLeft.parentNode.insertBefore(searchContainer, gLeft); // 插入到 #gleft 前方，使搜索框位于页面顶部合适位置
+            gLeft.style.top = 'unset'; // 修正封面 #gleft 定位
 
-            // 注入搜索框 HTML（复刻 EH 原生结构）
-            searchContainer.innerHTML = /* html */ `
-                <h1 class="ih"></h1><div id="searchbox" class="idi"><form method="get" style="margin:0px; padding:0px">
-                <input type="hidden" id="f_cats" name="f_cats" value="0">
-                <table class="itc"><tbody><tr>
-                <td><div id="cat_2" class="cs ct2">Doujinshi</div></td>
-                <td><div id="cat_4" class="cs ct3">Manga</div></td>
-                <td><div id="cat_8" class="cs ct4">Artist CG</div></td>
-                <td><div id="cat_16" class="cs ct5">Game CG</div></td>
-                <td><div id="cat_512" class="cs cta">Western</div></td>
-                </tr><tr>
-                <td><div id="cat_256" class="cs ct9">Non-H</div></td>
-                <td><div id="cat_32" class="cs ct6">Image Set</div></td>
-                <td><div id="cat_64" class="cs ct7">Cosplay</div></td>
-                <td><div id="cat_128" class="cs ct8">Asian Porn</div></td>
-                <td><div id="cat_1" class="cs ct1">Misc</div></td>
-                </tr></tbody></table>
-                <div><input type="text" id="f_search" name="f_search" placeholder="Search Keywords" size="90" maxlength="200"><input type="submit" value="Search"><input type="button" value="Clear"></div>
-                <div>[<a href="#" id="adv_toggle">Show Advanced Options</a>]</div>
-                <div id="advdiv" style="display: none;"></div></form></div>
-            `;
-
-            const advTemplate = /* html */ `
-                <input type="hidden" id="advsearch" name="advsearch" value="1">
-                <div class="searchadv"><div>
-                <div><label class="lc"><input type="checkbox" name="f_sh"><span></span> Browse Expunged Galleries</label></div>
-                <div><label class="lc"><input type="checkbox" name="f_sto"><span></span> Require Gallery Torrent</label></div>
-                </div><div>
-                <div>Between <input type="text" id="f_spf" name="f_spf" size="4" maxlength="4" style="width:30px"> and <input type="text" id="f_spt" name="f_spt" size="4" maxlength="4" style="width:30px"> pages</div>
-                <div>Minimum Rating: <select id="f_srdd" name="f_srdd"><option value="0">Any Rating</option><option value="2">2 Stars</option><option value="3">3 Stars</option><option value="4">4 Stars</option><option value="5">5 Stars</option></select></div>
-                </div><div>
-                <div>Disable custom filters for:</div>
-                <div><label class="lc"><input type="checkbox" name="f_sfl"><span></span> Language</label></div>
-                <div><label class="lc"><input type="checkbox" name="f_sfu"><span></span> Uploader</label></div>
-                <div><label class="lc"><input type="checkbox" name="f_sft"><span></span> Tags</label></div>
-                </div></div>
-            `;
-
-            // 设置 form 的 action，用于搜索
+            // 注入 HTML
+            searchContainer.innerHTML = G_SEARCH_HTML;
             searchContainer.querySelector('form').action = window.location.origin + '/';
 
             // 为所有分类按钮绑定点击事件（位掩码控制 f_cats）
@@ -2401,7 +2614,7 @@
             const advDiv = $i('advdiv');
             advToggle.onclick = (e) => {
                 if (advDiv.style.display === 'none') {
-                    advDiv.innerHTML = advTemplate;
+                    advDiv.innerHTML = G_SEARCH_ADV_HTML;
                     advDiv.style.display = '';
                     advToggle.textContent = 'Hide Advanced Options';
                 } else {
@@ -2411,42 +2624,20 @@
                 }
             };
 
-            // 点击页面标签显示搜索框并添加/移除搜索词
-            $$('#taglist a').forEach((tag) => {
-                tag._tagClickHandler = (e) => {
-                    // 显示搜索框
-                    searchContainer.style.display = 'block';
+            // 绑定标签列表事件委托
+            if (tagList && !tagList.hasAttribute('data-lolicon-bound')) {
+                tagList.addEventListener('click', tagInteractG);
+                tagList.addEventListener('wheel', tagInteractG, { passive: false });
+                tagList.setAttribute('data-lolicon-bound', 'true');
+            }
 
-                    // 从 href 提取标签 命名空间:标签名
-                    const hrefMatch = tag.href.match(/\/tag\/([^:]+):(.+)$/);
-                    if (hrefMatch) {
-                        const ns = hrefMatch[1]; // 命名空间
-                        const nsAbbr = tag_nsMap[ns] || ns; // 映射为 EH 搜索缩写
-                        let tagName = hrefMatch[2].replace(/\+/g, ' '); // + 转空格
-
-                        // 如果 tagName 包含空格，用双引号括起来并把 $ 放入引号内
-                        const tagToken = /\s/.test(tagName)
-                            ? `${nsAbbr}:"${tagName}$"`
-                            : `${nsAbbr}:${tagName}$`;
-
-                        // 交给统一的搜索词切换逻辑处理
-                        toggleTag(tagToken);
-                    }
-                };
-
-                tag.addEventListener('click', tag._tagClickHandler);
-            });
-
-            // 修正封面 #gleft 定位
-            if ($i('gleft')) { $i('gleft').style.top = 'unset'; }
         } else if (!cfg.tagSearchG && $i('toppane')) {
-            // 页面标签解绑
-            $$('#taglist a').forEach((tag) => {
-                if (tag._tagClickHandler) {
-                    tag.removeEventListener('click', tag._tagClickHandler);
-                    delete tag._tagClickHandler;
-                }
-            });
+            // 标签列表事件解绑
+            if (tagList && tagList.hasAttribute('data-lolicon-bound')) {
+                tagList.removeEventListener('click', tagInteractG);
+                tagList.removeEventListener('wheel', tagInteractG);
+                tagList.removeAttribute('data-lolicon-bound');
+            }
 
             // 搜索框删除
             $i('toppane').remove();
@@ -3040,7 +3231,7 @@
     }
 
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
-    // 11. 网址切换
+    // 11. 导航栏按钮
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
     /** EH/ExH 页面切换信息 */
@@ -3082,7 +3273,28 @@
         toggleEHInfo.allowed = !pageInfo.isTor && $i('nb') && allowPathReplace;
     }
 
-    /** 切换 EH/ExH 按钮*/
+    /** 脚本设置按钮 */
+    function scriptSettingsButton() {
+        if (cfg.scriptSettings && !$i('scriptSettings')) {
+            $i('toggleEH')?.remove();
+            const div = $el('div');
+            const btn = $el('a');
+
+            btn.textContent = 'LOLICON';
+            btn.href = 'javascript:void(0);';
+            btn.onclick = () => {
+                showSettingsPanel();
+            };
+
+            div.id = 'scriptSettings';
+            div.appendChild(btn);
+            $i('nb').appendChild(div);
+        } else if (!cfg.scriptSettings && $i('scriptSettings')) {
+            $i('scriptSettings').remove();
+        }
+    }
+
+    /** 切换 EH/ExH 按钮 */
     function toggleEHButton() {
         if (cfg.toggleEH && !$i('toggleEH')) {
             const div = $el('div');
@@ -3174,7 +3386,13 @@
         if (scrollObserver) scrollObserver.disconnect();
         scrollObserver = new IntersectionObserver(([entry]) => {
             if (entry.isIntersecting && !nextPage.isLoading && !nextPage.isError && cfg[configKey]) {
-                // 检查页数限制
+
+                if (!nextPage.nextPageLink) {
+                    updateLoadingStatus('end');
+                    scrollObserver.unobserve(indicator);
+                    return;
+                }
+
                 const maxPageLimit = cfg[maxPagesKey];
                 if (maxPageLimit !== 0 && nextPage.loadedCount >= maxPageLimit) {
                     console.log('LOLICON 已达到最大页数限制: ', nextPage.loadedCount, ' >= ', maxPageLimit);
@@ -3219,6 +3437,7 @@
             throttledAdjustColumnsS();
             quickTagPanel();
         }
+        scriptSettingsButton();
         if (toggleEHInfo.allowed) {
             toggleEHButton();
         }
