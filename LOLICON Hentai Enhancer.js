@@ -3454,8 +3454,10 @@
             throttledAdjustColumnsS();
             quickTagPanel();
         }
-        updateNbStyle();
-        scriptSettingsButton();
+        if ($i('nb')) {
+            updateNbStyle();
+            scriptSettingsButton();
+        }
         if (toggleEHInfo.allowed) {
             toggleEHButton();
         }
