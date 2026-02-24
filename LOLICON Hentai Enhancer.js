@@ -6,7 +6,7 @@
 // @name:ko             LOLICON Hentai 향상기
 // @name:ru             LOLICON Hentai Улучшатель
 // @namespace           https://greasyfork.org/scripts/516145
-// @version             2026.02.24
+// @version             2026.02.24.04
 // @description         E-Hentai/ExHentai Auto Window Adaptation, Adjustable Thumbnails (size/margin), Quick Favorite, Infinite Scroll, Load More Thumbnails, Quick Tag & Search Enhancer, Thumbnail Hover Zoom
 // @description:zh-CN   E-Hentai/ExHentai 自动适配窗口尺寸、缩略图调整（大小/间距）、快捷收藏、无限滚动、加载更多缩略图、快捷标签 & 搜索增强、缩略图悬浮放大
 // @description:zh-TW   E-Hentai/ExHentai 自動適配視窗尺寸、縮圖調整（大小/間距）、快捷收藏、無限滾動、加載更多縮圖、快捷標籤 & 搜尋增強、縮略圖懸浮放大
@@ -307,7 +307,7 @@
                 user-select: none;
             }
             #lolicon-tag-manage-textarea {
-                min-width: 240px; min-height: 240px;
+                min-width: 300px; min-height: 300px;
                 width: 36vw; height: 36vh;
                 padding: 6px 12px;
                 font-family: NSimSun, monospace;
@@ -315,7 +315,13 @@
                 white-space: pre;
                 user-select: text;
             }
-            #lolicon-tag-manage-footer { display: flex; justify-content: flex-end; padding: 6px 0; }
+            #lolicon-tag-manage-footer { display: flex; padding: 6px 0; }
+            #lolicon-tag-manage-hint {
+                font-size: 12px;
+                white-space: pre-line;
+                text-align: left;
+            }
+            #lolicon-tag-manage-buttons { margin-left: auto; }
             #lolicon-tag-manage-save, #lolicon-tag-manage-cancel { margin: 6px; }
         `,
 
@@ -680,13 +686,21 @@
             'ko': '새 탭에서 검색하려면 마우스 오른쪽 버튼 클릭 또는 Ctrl+왼쪽 클릭',
             'ru': 'Щелкните правой кнопкой мыши или Ctrl+ЛКМ, чтобы искать в новой вкладке',
         },
+        'inputFormatHint': {
+            'en': '[name @ tag] or [name @ tag1 tag2 ...]\nUse [ _ ] as a separator for line breaks',
+            'zh-CN': '[name @ tag] 或 [name @ tag1 tag2 ...]\n使用 [ _ ] 作为换行分隔符',
+            'zh-TW': '[name @ tag] 或 [name @ tag1 tag2 ...]\n使用 [ _ ] 作為換行分隔符',
+            'ja': '[name @ tag] または [name @ tag1 tag2 ...]\n[ _ ] を改行区切りとして使用',
+            'ko': '[name @ tag] 또는 [name @ tag1 tag2 ...]\n줄바꿈 구분자로 [ _ ] 사용',
+            'ru': '[name @ tag] или [name @ tag1 tag2 ...]\nИспользуйте [ _ ] как разделитель переноса строки',
+        },
         'invalidInput': {
-            'en': 'Invalid input\n\nUse [tag] or [name @ tag] or [name @ tag tag] format\nExample:\nLOLI @ f:lolicon$\n\nError line:\n',
-            'zh-CN': '无效输入\n\n请使用 [tag] 或 [name @ tag] 或 [name @ tag tag] 格式\n示例:\nLOLI @ f:lolicon$\n\n错误行:\n',
-            'zh-TW': '無效輸入\n\n請使用 [tag] 或 [name @ tag] 或 [name @ tag tag] 格式\n範例:\nLOLI @ f:lolicon$\n\n錯誤行:\n',
-            'ja': '無効な入力です\n\n[tag] または [name @ tag] または [name @ tag tag] 形式を使用してください\n例:\nLOLI @ f:lolicon$\n\nエラー行:\n',
-            'ko': '잘못된 입력\n\n[tag] 또는 [name @ tag] 또는 [name @ tag tag] 형식을 사용하세요\n예시:\nLOLI @ f:lolicon$\n\n오류 줄:\n',
-            'ru': 'Неверный ввод\n\nИспользуйте формат [tag] или [name @ tag] или [name @ tag tag]\nПример:\nLOLI @ f:lolicon$\n\nСтрока с ошибкой:\n',
+            'en': 'Invalid input\n\nUse [tag] or [name @ tag] or [name @ tag1 tag2 ...] format\nExample:\nLOLI @ f:lolicon$\n\nError line:\n',
+            'zh-CN': '无效输入\n\n请使用 [tag] 或 [name @ tag] 或 [name @ tag1 tag2 ...] 格式\n示例:\nLOLI @ f:lolicon$\n\n错误行:\n',
+            'zh-TW': '無效輸入\n\n請使用 [tag] 或 [name @ tag] 或 [name @ tag1 tag2 ...] 格式\n範例:\nLOLI @ f:lolicon$\n\n錯誤行:\n',
+            'ja': '無効な入力です\n\n[tag] または [name @ tag] または [name @ tag1 tag2 ...] 形式を使用してください\n例:\nLOLI @ f:lolicon$\n\nエラー行:\n',
+            'ko': '잘못된 입력\n\n[tag] 또는 [name @ tag] 또는 [name @ tag1 tag2 ...] 형식을 사용하세요\n예시:\nLOLI @ f:lolicon$\n\n오류 줄:\n',
+            'ru': 'Неверный ввод\n\nИспользуйте формат [tag] или [name @ tag] или [name @ tag1 tag2 ...]\nПример:\nLOLI @ f:lolicon$\n\nСтрока с ошибкой:\n',
         },
         'unmatchedQuotes': {
             'en': 'Unmatched quotes\n\nEnsure quotes in tag names and tags are paired\n\nError line:\n',
@@ -2346,7 +2360,14 @@
         btnCancel.id = 'lolicon-tag-manage-cancel';
         btnCancel.addEventListener('click', () => panel.remove()); // 取消按钮直接移除面板
 
-        bar.append(btnSave, btnCancel);
+        const hint = $el('div');
+        hint.id = 'lolicon-tag-manage-hint';
+        hint.textContent = translate('inputFormatHint');
+        const btnBox = $el('div');
+        btnBox.id = 'lolicon-tag-manage-buttons';
+        btnBox.append(btnSave, btnCancel);
+        bar.append(hint, btnBox);
+
         panel.append(header, ta, bar);
         document.body.append(panel);
         enablePanelDrag(panel);
