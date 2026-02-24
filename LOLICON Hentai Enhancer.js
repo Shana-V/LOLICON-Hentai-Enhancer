@@ -3289,8 +3289,6 @@
             div.id = 'scriptSettings';
             div.appendChild(btn);
             $i('nb').appendChild(div);
-            $i('nb').style.width = 'max-content';
-            $i('nb').style.gap = '12px';
         } else if (!cfg.scriptSettings && $i('scriptSettings')) {
             $i('scriptSettings').remove();
         }
@@ -3308,10 +3306,25 @@
             div.id = 'toggleEH';
             div.appendChild(btn);
             $i('nb').appendChild(div);
-            $i('nb').style.width = 'max-content';
-            $i('nb').style.gap = '12px';
         } else if (!cfg.toggleEH && $i('toggleEH')) {
             $i('toggleEH').remove();
+        }
+    }
+
+    /** 更新导航栏样式 */
+    function updateNbStyle() {
+        const nb = $i('nb');
+
+        if (!cfg.scriptSettings && (!cfg.toggleEH || !toggleEHInfo.allowed)) {
+            nb.style.width = '';
+            nb.style.minWidth = '';
+            nb.style.maxWidth = '';
+            nb.style.gap = '';
+        } else {
+            nb.style.width = 'max-content';
+            nb.style.minWidth = '710px';
+            nb.style.maxWidth = '1200px';
+            nb.style.gap = '2px';
         }
     }
 
@@ -3441,6 +3454,7 @@
             throttledAdjustColumnsS();
             quickTagPanel();
         }
+        updateNbStyle();
         scriptSettingsButton();
         if (toggleEHInfo.allowed) {
             toggleEHButton();
