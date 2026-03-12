@@ -6,7 +6,7 @@
 // @name:ko             LOLICON Hentai 향상기
 // @name:ru             LOLICON Hentai Улучшатель
 // @namespace           https://greasyfork.org/scripts/516145
-// @version             2026.02.24.04
+// @version             2026.03.12
 // @description         E-Hentai/ExHentai Auto Window Adaptation, Adjustable Thumbnails (size/margin), Quick Favorite, Infinite Scroll, Load More Thumbnails, Quick Tag & Search Enhancer, Thumbnail Hover Zoom
 // @description:zh-CN   E-Hentai/ExHentai 自动适配窗口尺寸、缩略图调整（大小/间距）、快捷收藏、无限滚动、加载更多缩略图、快捷标签 & 搜索增强、缩略图悬浮放大
 // @description:zh-TW   E-Hentai/ExHentai 自動適配視窗尺寸、縮圖調整（大小/間距）、快捷收藏、無限滾動、加載更多縮圖、快捷標籤 & 搜尋增強、縮略圖懸浮放大
@@ -88,8 +88,8 @@
         };
     }
 
-    /** 更新画廊列表页宽-节流 */
-    const throttledAdjustColumnsS = throttle(adjustColumnsS, 60);
+    /** 更新列表页宽-节流 */
+    const throttledAdjustColumnsL = throttle(adjustColumnsL, 60);
     /** 更新画廊页宽-节流 */
     const throttledAdjustColumnsG = throttle(adjustColumnsG, 60);
     /** 更新地址栏-节流 */
@@ -104,38 +104,57 @@
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
     /** 获取当前设备的设备像素比（DPR）*/
-    const devicePixelRatio = window.devicePixelRatio || 1;
+    const getDPR = () => window.devicePixelRatio ?? 1;
 
     /** 用于存储布局相关的动态数据 */
     const layout = {};
 
-    /** 配置项 */
+    /** 配置项 - T: 列表页-缩略图模式, L: 列表页, G: 画廊页, S: 搜索框, NB: 导航栏, EH: 可切换网址 */
     const config = {
-        zoomFactorS: { def: 1, step: 0.01, min: 0.5, max: 10 },
-        zoomFactorG: { def: 1, step: 0.01, min: 0.5, max: 10 },
-        margin: { def: 10, step: 1, min: 0, max: 100 },
-        spacing: { def: 15, step: 1, min: 0, max: 100 },
-        pageMargin: { def: 10, step: 1, min: 0, max: 1000 },
-        pagePadding: { def: 10, step: 1, min: 0, max: 1000 },
-        fullScreenMode: { def: false },
-        squareMode: { def: false },
-        showIndex: { def: false },
-        liveURLUpdate: { def: false },
-        tagSearchG: { def: true },
-        quickTag: { def: true },
-        quickFavorite: { def: true },
-        favLayout: { def: 0, options: ['A : 1x10', 'B : 2x5', 'C : 2x5', 'D : 5x2'] },
-        infiniteScroll: { def: true },
-        maxPagesS: { def: 0, step: 1, min: 0, max: 1000 },
-        moreThumbnail: { def: true },
-        maxPagesG: { def: 0, step: 1, min: 0, max: 1000 },
-        thumbScroll: { def: false },
-        thumbHoverZoom: { def: true },
-        hoverScale: { def: 2, step: 0.01, min: 1, max: 10 },
-        hoverDelay: { def: 1, step: 0.01, min: 0.5, max: 10 },
-        hoverLoadLargeImage: { def: false },
-        scriptSettings: { def: true },
-        toggleEH: { def: false },
+        // 列表页布局配置
+        layoutEnabledL: { pages: ['L', 'S'], def: true }, // 列表页布局修改模式
+        layoutSizeModeT: { pages: ['T'], def: 0, options: ['layoutAuto', 'layoutLimitColumn', 'layoutLimitWidth'] }, // 缩略图布局模式
+        min_ColumnCountT: { pages: ['T'], def: 2, step: 1, min: 1, max: 100 }, // 缩略图最小列数
+        max_ColumnCountT: { pages: ['T'], def: 5, step: 1, min: 1, max: 100 }, // 缩略图最大列数
+        min_FixedWidthT: { pages: ['T'], def: 740, step: 1, min: 740, max: 9999 }, // 缩略图最小宽度
+        max_FixedWidthT: { pages: ['T'], def: 1370, step: 1, min: 740, max: 9999 }, // 缩略图最大宽度
+        zoomFactorT: { pages: ['T'], def: 1, step: 0.01, min: 0.5, max: 10 }, // 缩略图缩放
+        margin: { pages: ['T'], def: 10, step: 1, min: 0, max: 100 }, // 缩略图边距
+        squareMode: { pages: ['T'], def: false }, // 方形缩略图
+        pageMarginL: { pages: ['L', 'S'], def: 10, step: 1, min: 0, max: 1000 }, // 列表页页面外边距
+        pagePadding: { pages: ['L', 'S'], def: 10, step: 1, min: 0, max: 1000 }, // 列表页页面内边距
+        fullWidthModeL: { pages: ['L', 'S'], def: false }, // 列表页全宽布局   
+
+        // 画廊页布局配置
+        layoutEnabledG: { pages: ['G'], def: true }, // 画廊页布局修改模式
+        layoutSizeModeG: { pages: ['G'], def: 0, options: ['layoutAuto', 'layoutLimitColumn', 'layoutLimitWidth'] }, // 画廊页缩略图布局模式
+        min_ColumnCountG: { pages: ['G'], def: 3, step: 1, min: 1, max: 100 }, // 画廊页缩略图最小列数
+        max_ColumnCountG: { pages: ['G'], def: 5, step: 1, min: 1, max: 100 }, // 画廊页缩略图最大列数
+        min_FixedWidthG: { pages: ['G'], def: 700, step: 1, min: 700, max: 9999 }, // 画廊页缩略图最小宽度
+        max_FixedWidthG: { pages: ['G'], def: 1200, step: 1, min: 700, max: 9999 }, // 画廊页缩略图最大宽度
+        zoomFactorG: { pages: ['G'], def: 1, step: 0.01, min: 0.5, max: 10 }, // 画廊页缩略图缩放
+        spacing: { pages: ['G'], def: 20, step: 1, min: 0, max: 100 }, // 画廊页缩略图间距
+        pageMarginG: { pages: ['G'], def: 10, step: 1, min: 0, max: 1000 }, // 画廊页页面外边距
+        fullWidthModeG: { pages: ['G'], def: false }, // 画廊页全宽布局
+
+        // 功能开关 
+        showIndex: { pages: ['L'], def: false }, // 显示序号
+        liveURLUpdate: { pages: ['L'], def: false }, // 实时更新网址
+        tagSearchG: { pages: ['G'], def: true }, // 画廊标签搜索
+        quickTag: { pages: ['G', 'S'], def: true }, // 快捷标签
+        quickFavorite: { pages: ['G', 'S'], def: true }, // 快捷收藏
+        favLayout: { pages: ['G', 'S'], def: 0, options: ['A : 1x10', 'B : 2x5', 'C : 2x5', 'D : 5x2'] }, // 收藏夹布局
+        infiniteScroll: { pages: ['L'], def: true }, // 无限滚动
+        maxPagesL: { pages: ['L'], def: 0, step: 1, min: 0, max: 1000 }, // 最大页数 [0 = 无限] (列表)
+        moreThumbnail: { pages: ['G'], def: true }, // 更多缩略图
+        maxPagesG: { pages: ['G'], def: 0, step: 1, min: 0, max: 1000 }, // 最大页数 [0 = 无限] (画廊)
+        thumbScroll: { pages: ['G'], def: false }, // 缩略图独立滚动
+        thumbHoverZoom: { pages: ['T', 'G'], def: true }, // 缩略图悬浮放大
+        hoverScale: { pages: ['T', 'G'], def: 2, step: 0.01, min: 1, max: 10 }, // 悬浮缩放倍数
+        hoverDelay: { pages: ['T', 'G'], def: 1, step: 0.01, min: 0.5, max: 10 }, // 悬浮显示延迟 (s)
+        hoverLoadLargeImage: { pages: ['T', 'G'], def: false }, // 悬浮加载大图
+        scriptSettings: { pages: ['NB'], def: true }, // 脚本设置按钮
+        toggleEH: { pages: ['EH'], def: false }, // EH/ExH 切换按钮
     };
 
     /**  EH 标签命名空间 缩写映射表 */
@@ -156,10 +175,14 @@
     // 脚本样式
     const CSS_MODULES = {
 
+        LOLICON: /* css */ `
+            [data-lolicon-index] { white-space: nowrap; }
+        `,
+
         // 变量
         vars: /* css */ `
-            body { --lolicon-vars-bg-rgb: 0, 0, 0;  --lolicon-vars-text-rgb: 255, 255, 255; }
-            body.ex, body.tor { --lolicon-vars-bg-rgb: 255, 255, 255; --lolicon-vars-text-rgb: 0, 0, 0; }
+            body { --lolicon-primary-rgb: 0, 0, 0; --lolicon-bg-rgb: 255, 255, 255; --lolicon-text-rgb: 22, 22, 22; }
+            body.ex, body.tor { --lolicon-primary-rgb: 255, 255, 255; --lolicon-bg-rgb: 0, 0, 0; --lolicon-text-rgb: 234, 234, 234; }
         `,
 
         // 设置页面样式
@@ -170,17 +193,20 @@
                 position: fixed;
                 top: 36px;
                 right: 24px;
-                background-color: rgba(255, 255, 255, 0.8);
+                background-color: rgba(var(--lolicon-bg-rgb), 0.8);
                 border-radius: 12px;
                 box-shadow: 0 0 12px rgba(0,0,0,0.6);
-                z-index: 999999;
                 font-size: 14px;
-                color: #222;
+                color: rgba(var(--lolicon-text-rgb), 1);
+                white-space: nowrap;
+                width: max-content;
                 min-width: 180px;
                 min-height: 180px;
                 max-height: calc(100vh - 60px);
                 overflow: hidden;
                 backdrop-filter: blur(2px);
+                touch-action: none;
+                will-change: transform;
             }
             .lolicon-settings-header { flex-shrink: 0; }
             #lolicon-settings-panel h3 {
@@ -197,6 +223,42 @@
                 padding: 0 12px;
                 margin: 6px;
                 user-select: none;
+            }
+            .lolicon-settings-body-row-extra {
+                opacity: 0.6;
+                filter: grayscale(0.36);
+            }
+            .lolicon-settings-toggle-bar {
+                padding: 0px 12px 12px 12px;
+            }
+            .lolicon-settings-toggle-btn {
+                width: 100%;
+                height: 32px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 8px;
+                background: transparent;
+                border: 1px dashed #00AAFF;
+                border-radius: 4px;
+                color: #00AAFF;
+                cursor: pointer;
+                font-size: 12px;
+                transition: all 0.1s ease;
+            }
+            .lolicon-settings-toggle-btn svg {
+                width: 16px;
+                height: 16px;
+                fill: currentColor;
+            }
+            .lolicon-settings-toggle-btn:hover {
+                background: rgba(0, 170, 255, 0.1);
+                border-style: solid;
+            }
+            .lolicon-settings-toggle-btn:active { transform: scale(0.96); }
+            .lolicon-settings-toggle-btn.active {
+                background: rgba(0, 170, 255, 0.1);
+                border-style: solid;
             }
             .lolicon-settings-footer {
                 flex-shrink: 0;
@@ -223,9 +285,14 @@
                 align-items: center;
                 justify-content: space-between;
                 gap: 12px;
+                --lolicon-indent-level: 0;
+                padding-left: calc(var(--lolicon-indent-level) * 24px);
             }
-            .lolicon-settings-control-row label { font-weight: bold; cursor: pointer; }
-            .lolicon-settings-indent { margin-left: 24px; color: #666; }
+            .lolicon-settings-control-row label { 
+                font-size: 14px;
+                font-weight: bold; 
+                cursor: pointer; 
+            }
             #lolicon-settings-panel input[type='number'] {
                 width: 60px;
                 padding: 4px;
@@ -258,19 +325,16 @@
         preview: /* css */ `
             #lolicon-preview {
                 position: fixed;
-                border: 1px solid #000;
-                z-index: 999998;
                 background-repeat: no-repeat;
                 display: none;
                 box-shadow: 0 0 12px rgba(0,0,0,0.6);
                 overflow: hidden;
-                will-change: width, height, left, top;
                 pointer-events: auto;
+                touch-action: none;
             }
             #lolicon-preview img {
-                object-fit: cover;
                 width: 100%;
-                height: 100%;
+                height: auto;
                 display: none;
             }
         `,
@@ -297,8 +361,9 @@
                 padding: 0 12px;
                 border-radius: 8px;
                 box-shadow: 0 0 12px rgba(0,0,0,0.6);
-                z-index: 1000;
                 user-select: none;
+                touch-action: none;
+                will-change: transform;
             }
             #lolicon-tag-manage-header {
                 padding: 12px;
@@ -308,7 +373,7 @@
             }
             #lolicon-tag-manage-textarea {
                 min-width: 300px; min-height: 300px;
-                width: 36vw; height: 36vh;
+                width: 420px; height: 420px;
                 padding: 6px 12px;
                 font-family: NSimSun, monospace;
                 line-height: 1.2;
@@ -332,7 +397,6 @@
                 background: rgba(0, 0, 0, 0.8);
                 box-shadow: 0 0 6px rgba(0,0,0,0.6);
                 padding: 2px;
-                z-index: 999996;
                 color: #fff;
                 min-width: 166px;
                 font-size: 10pt;
@@ -340,6 +404,7 @@
                 text-shadow: 0 0 1.2px #000, 0 0 2.4px #000, 0 0 3.6px #000;
                 display: block;
                 backdrop-filter: blur(2px);
+                user-select: none;
             }
             .lolicon-fav-grid { display: grid; }
             .lolicon-fav-grid.layout-1 { grid-auto-flow: column; grid-template-rows: repeat(5, 1fr); grid-template-columns: 1fr 1fr; }
@@ -357,11 +422,11 @@
             .lolicon-fav-action-row { display: flex; }
             .lolicon-fav-action-item { flex: 1; text-align: center; }
             .lolicon-fav-hover-gallery:not([style*="background"]):hover {
-                background-color: rgba(var(--lolicon-vars-bg-rgb), 0.12) !important;
-                box-shadow: inset 0 0 0 2px rgba(var(--lolicon-vars-bg-rgb), 0.12) !important;
+                background-color: rgba(var(--lolicon-primary-rgb), 0.12) !important;
+                box-shadow: inset 0 0 0 2px rgba(var(--lolicon-primary-rgb), 0.12) !important;
             }
             .lolicon-fav-hover-list:not([style*="background"]):hover {
-                border-color: rgb(var(--lolicon-vars-bg-rgb)) !important;
+                border-color: rgb(var(--lolicon-primary-rgb)) !important;
             }
             .lolicon-fav-gdf-btn {
                 padding-top: 0 !important;
@@ -389,12 +454,26 @@
                 display: flex;
                 align-items: center;
                 justify-content: center;
+                border-radius: 2px;
+                border: 1px solid color-mix(in srgb, currentColor, transparent 80%);
             }
             tr.lolicon-loading-container td {
                 text-align: center;
                 padding: 6px 0;
                 color: inherit;
                 vertical-align: middle;
+            }
+            div.lolicon-loading-container:has(.modern-link),
+            tr.lolicon-loading-container:has(.modern-link) td {
+                box-shadow: 0 0 2px rgba(0,0,0,0.6);
+                cursor:pointer;
+            }
+            div.lolicon-loading-container:has(.modern-link):hover {
+                border-color: color-mix(in srgb, currentColor, transparent 60%);
+                background: rgba(var(--lolicon-primary-rgb), 0.06);
+            }
+            tr.lolicon-loading-container:has(.modern-link):hover td {
+                background: rgba(var(--lolicon-primary-rgb), 0.06);
             }
             .lolicon-loading-spinner {
                 display: inline-block;
@@ -406,11 +485,12 @@
                 animation: lolicon-loading-spin 0.6s linear infinite;
                 vertical-align: middle;
             }
-            @keyframes lolicon-loading-spin { to { transform: rotate(360deg); } }
+            @keyframes lolicon-loading-spin { to { transform: rotate(360deg); } } 
             .lolicon-loading-status-text {
                 font-size: 18px;
                 display: inline-block;
                 color: inherit;
+                user-select: none;
                 margin-left: 10px;
                 vertical-align: middle;
                 opacity: 0.8;
@@ -430,21 +510,93 @@
 
     /** 定义语言包 */
     const _translations = {
-        'zoomFactorS': {
+        'layoutEnabledL': {
+            'en': 'List Layout Adjust',
+            'zh-CN': '列表布局调整',
+            'zh-TW': '列表佈局調整',
+            'ja': 'リストレイアウト調整',
+            'ko': '리스트 레이아웃 조정',
+            'ru': 'Настройка макета списка',
+        },
+        'layoutEnabledG': {
+            'en': 'Gallery Layout Adjust',
+            'zh-CN': '画廊布局调整',
+            'zh-TW': '畫廊佈局調整',
+            'ja': 'ギャラリーレイアウト調整',
+            'ko': '갤러리 레이아웃 조정',
+            'ru': 'Настройка макета галереи',
+        },
+        'layoutSizeMode': {
+            'en': 'Thumbnail Layout',
+            'zh-CN': '缩略图布局',
+            'zh-TW': '縮圖佈局',
+            'ja': 'サムネイルレイアウト',
+            'ko': '썸네일 레이아웃',
+            'ru': 'Макет миниатюр',
+        },
+        'layoutAuto': {
+            'en': 'Auto',
+            'zh-CN': '自动',
+            'zh-TW': '自動',
+            'ja': '自動',
+            'ko': '자동',
+            'ru': 'Авто',
+        },
+        'layoutLimitColumn': {
+            'en': 'Max/Min Column',
+            'zh-CN': '限制列数',
+            'zh-TW': '限制列數',
+            'ja': '列数制限',
+            'ko': '열 개수 제한',
+            'ru': 'Ограничение столбцов',
+        },
+        'layoutLimitWidth': {
+            'en': 'Max/Min Width',
+            'zh-CN': '限制宽度',
+            'zh-TW': '限制寬度',
+            'ja': '幅制限',
+            'ko': '너비 제한',
+            'ru': 'Ограничение ширины',
+        },
+        'min_ColumnCount': {
+            'en': 'Min Columns',
+            'zh-CN': '最小列数',
+            'zh-TW': '最小列數',
+            'ja': '最小列数',
+            'ko': '최소 열 개수',
+            'ru': 'Мин. столбцов',
+        },
+        'max_ColumnCount': {
+            'en': 'Max Columns',
+            'zh-CN': '最大列数',
+            'zh-TW': '最大列數',
+            'ja': '最大列数',
+            'ko': '최대 열 개수',
+            'ru': 'Макс. столбцов',
+        },
+        'min_FixedWidth': {
+            'en': 'Min Width',
+            'zh-CN': '最小宽度',
+            'zh-TW': '最小寬度',
+            'ja': '最小幅',
+            'ko': '최소 너비',
+            'ru': 'Мин. ширина',
+        },
+        'max_FixedWidth': {
+            'en': 'Max Width',
+            'zh-CN': '最大宽度',
+            'zh-TW': '最大寬度',
+            'ja': '最大幅',
+            'ko': '최대 너비',
+            'ru': 'Макс. ширина',
+        },
+        'zoomFactor': {
             'en': 'Thumbnail Zoom',
             'zh-CN': '缩略图缩放',
             'zh-TW': '縮圖縮放',
             'ja': 'サムネイルズーム',
             'ko': '썸네일 확대 비율',
             'ru': 'Масштаб миниатюры',
-        },
-        'zoomFactorG': {
-            'en': 'Gallery Thumbnail Zoom',
-            'zh-CN': '画廊缩略图缩放',
-            'zh-TW': '畫廊縮圖縮放',
-            'ja': 'ギャラリーサムネイルズーム',
-            'ko': '갤러리 썸네일 확대 비율',
-            'ru': 'Масштаб миниатюр галереи',
         },
         'margin': {
             'en': 'Thumbnail Margin',
@@ -478,13 +630,13 @@
             'ko': '페이지 내부 여백',
             'ru': 'Внутренний отступ страницы',
         },
-        'fullScreenMode': {
-            'en': 'Full Screen Mode',
-            'zh-CN': '全屏模式',
-            'zh-TW': '全螢幕模式',
-            'ja': 'フルスクリーンモード',
-            'ko': '전체 화면 모드',
-            'ru': 'Режим полного экрана',
+        'fullWidthMode': {
+            'en': 'Full Width Layout',
+            'zh-CN': '全宽布局',
+            'zh-TW': '全寬佈局',
+            'ja': '全幅レイアウト',
+            'ko': '전체 너비 레이아웃',
+            'ru': 'Полная ширина макета',
         },
         'squareMode': {
             'en': 'Square Thumbnail',
@@ -550,14 +702,6 @@
             'ko': '무한 스크롤',
             'ru': 'Бесконечная прокрутка',
         },
-        'maxPagesS': {
-            'en': 'Max Pages [0 = Unlimited]',
-            'zh-CN': '最大页数 [0 = 无限]',
-            'zh-TW': '最大頁數 [0 = 無限]',
-            'ja': '最大ページ数 [0 = 無制限]',
-            'ko': '최대 페이지 [0 = 무한]',
-            'ru': 'Макс. страниц [0 = Бесконечно]',
-        },
         'moreThumbnail': {
             'en': 'More Thumbnail',
             'zh-CN': '更多缩略图',
@@ -566,7 +710,7 @@
             'ko': '썸네일 더보기',
             'ru': 'Ещё миниатюры',
         },
-        'maxPagesG': {
+        'maxPages': {
             'en': 'Max Pages [0 = Unlimited]',
             'zh-CN': '最大页数 [0 = 无限]',
             'zh-TW': '最大頁數 [0 = 無限]',
@@ -591,28 +735,28 @@
             'ru': 'Увеличение при наведении на миниатюру',
         },
         'hoverScale': {
-            'en': 'Hover Zoom Scale',
-            'zh-CN': '悬浮缩放倍数',
-            'zh-TW': '懸浮縮放倍數',
-            'ja': 'ホバーズーム倍率',
-            'ko': '호버 확대 배율',
-            'ru': 'Масштаб увеличения при наведении',
+            'en': 'Zoom Scale',
+            'zh-CN': '缩放倍数',
+            'zh-TW': '縮放倍數',
+            'ja': '拡大倍率',
+            'ko': '확대 배율',
+            'ru': 'Масштаб зума',
         },
         'hoverDelay': {
-            'en': 'Hover Display Delay (s)',
-            'zh-CN': '悬浮显示延迟 (s)',
-            'zh-TW': '懸浮顯示延遲 (s)',
-            'ja': 'ホバー表示遅延 (s)',
-            'ko': '호버 표시 지연 (s)',
-            'ru': 'Задержка отображения при наведении (s)',
+            'en': 'Display Delay (s)',
+            'zh-CN': '显示延迟 (s)',
+            'zh-TW': '顯示延遲 (s)',
+            'ja': '表示遅延 (s)',
+            'ko': '표시 지연 (s)',
+            'ru': 'Задержка (s)',
         },
         'hoverLoadLargeImage': {
-            'en': 'Load Large Image on Hover',
-            'zh-CN': '悬浮加载大图',
-            'zh-TW': '懸浮加載大圖',
-            'ja': 'ホバー時に大きい画像を読み込む',
-            'ko': '호버 시 대형 이미지 로드',
-            'ru': 'Загрузка большой картинки при наведении',
+            'en': 'Load Large Image',
+            'zh-CN': '加载大图',
+            'zh-TW': '加載大圖',
+            'ja': '大きい画像を読み込む',
+            'ko': '대형 이미지 로드',
+            'ru': 'Загрузка больших изображений',
         },
         'scriptSettings': {
             'en': 'Script Settings Button',
@@ -638,13 +782,21 @@
             'ko': '설정',
             'ru': 'Настройки',
         },
-        'settingsPanel': {
-            'en': 'Settings',
-            'zh-CN': '设置',
-            'zh-TW': '設定',
-            'ja': '設定',
-            'ko': '설정',
-            'ru': 'Настройки',
+        'showAllSettings': {
+            'en': 'Show All Settings',
+            'zh-CN': '显示全部设置',
+            'zh-TW': '顯示全部設定',
+            'ja': 'すべての設定を表示',
+            'ko': '모든 설정 표시',
+            'ru': 'Показать все настройки',
+        },
+        'hideInactiveSettings': {
+            'en': 'Hide Unavailable Settings',
+            'zh-CN': '隐藏不可用设置',
+            'zh-TW': '隱藏不可用設定',
+            'ja': '利用不可な設定を非表示',
+            'ko': '사용 불가능한 설정 숨기기',
+            'ru': 'Скрыть недоступные настройки',
         },
         'save': {
             'en': 'Save',
@@ -754,12 +906,12 @@
 
     /** 输入报错模板 */
     const rangeTemplates = {
-        'en': `Invalid {{label}}! Please enter a value between {{min}} - {{max}}. Default {{default}}.`,
-        'zh-CN': `{{label}} 无效！请输入介于 {{min}} ~ {{max}} 之间的值。默认值为 {{default}}。`,
-        'zh-TW': `{{label}} 無效！請輸入介於 {{min}} ~ {{max}} 之間的值。預設值為 {{default}}。`,
-        'ja': `{{label}} が無効です！{{min}} ~ {{max}} までの値を入力してください。デフォルトは {{default}} です。`,
-        'ko': `잘못된 {{label}}! {{min}} ~ {{max}} 사이의 값을 입력하세요. 기본값 {{default}}`,
-        'ru': `Неверный {{label}}! Пожалуйста, введите значение от {{min}} - {{max}}. По умолчанию {{default}}`,
+        'en': `Invalid {{label}}! \nPlease enter a value between {{min}} - {{max}}. Default {{default}}`,
+        'zh-CN': `{{label}} 无效！\n请输入介于 {{min}} ~ {{max}} 之间的值。默认值为 {{default}}`,
+        'zh-TW': `{{label}} 無效！\n請輸入介於 {{min}} ~ {{max}} 之間的值。預設值為 {{default}}`,
+        'ja': `{{label}} が無効です！\n{{min}} ~ {{max}} までの値を入力してください。デフォルトは {{default}} です`,
+        'ko': `잘못된 {{label}}! \n{{min}} ~ {{max}} 사이의 값을 입력하세요. 기본값 {{default}}`,
+        'ru': `Неверный {{label}}! \nПожалуйста, введите значение от {{min}} - {{max}}. По умолчанию {{default}}`,
     };
 
     /** 模板替换函数 */
@@ -771,27 +923,48 @@
     const translations = new Proxy(_translations, {
         get(target, prop) {
             // 如果访问的是 xxxRange
-            const match = prop.match(/^(.+)Range$/);
-            if (match) {
-                const baseKey = match[1];
+            const rangeMatch = prop.match(/^(.+)Range$/);
+            if (rangeMatch) {
+                let baseKey = rangeMatch[1];
+
+                // 处理 L/G/T 后缀
+                const suffixMatch = baseKey.match(/^(.+)([LGT])$/);
+                if (suffixMatch) {
+                    const pureKey = suffixMatch[1];
+                    if (!Object.prototype.hasOwnProperty.call(target, baseKey) &&
+                        Object.prototype.hasOwnProperty.call(target, pureKey)) {
+                        baseKey = pureKey;
+                    }
+                }
+
                 const labelEntry = target[baseKey];
-                if (!labelEntry || !config[baseKey]) return undefined;
+                const conf = (baseKey in config) ? config[baseKey] : config[rangeMatch[1]];
+                if (!labelEntry || !conf) return undefined;
 
                 const output = {};
                 for (const lang of Object.keys(rangeTemplates)) {
                     output[lang] = interpolate(rangeTemplates[lang], {
                         label: labelEntry[lang],
-                        min: config[baseKey].min,
-                        max: config[baseKey].max,
-                        default: config[baseKey].def,
+                        min: conf.min,
+                        max: conf.max,
+                        default: conf.def,
                     });
                 }
                 return output;
             }
 
+            // 处理 L/G/T 后缀
+            const suffixMatch = prop.match(/^(.+)([LGT])$/);
+            if (suffixMatch) {
+                const baseKey = suffixMatch[1];
+                return Object.prototype.hasOwnProperty.call(target, baseKey)
+                    ? target[baseKey]
+                    : target[prop];
+            }
+
             // 普通字段直接返回
             return target[prop];
-        },
+        }
     });
 
     /** 确定用户语言 */
@@ -808,9 +981,6 @@
 
     /** 页面项目信息 */
     let pageItemsData = [];
-
-    /** 页面项目序号 */
-    let pageItemsIndex = 0;
 
     /** 用于存储脚本的用户配置 */
     const cfg = {};
@@ -834,7 +1004,8 @@
         isTagPage: window.location.pathname.startsWith('/tag/'), // 标签页面？和首页&搜索页一样
         isGalleryPopupsPage: window.location.pathname.startsWith('/gallerypopups.php'), // 画廊弹出窗口
 
-        listDisplayMode: $('.searchnav div:last-child select')?.value, // 列表显示模式（m/p/l/e/t）
+        listDisplayMode: $('.searchnav select[onchange*="dm_"]')?.value, // 列表显示模式（m/p/l/e/t）
+        hasSearchBox: !!$i('f_search') || !!$('form[action*="favorites.php"] input[name="f_search"]') // 是否存在搜索框
     };
 
     /** 当前输入设备 mouse/touch/pen */
@@ -856,17 +1027,24 @@
 
     /** 创建控件 HTML */
     function createControlHTML(type, name, value, options = {}) {
-        const rowClass = options.isIndented ? 'lolicon-settings-control-row lolicon-settings-indent' : 'lolicon-settings-control-row';
+        const classes = ['lolicon-settings-control-row'];
+        if (options.extraClass) classes.push('lolicon-settings-body-row-extra');
+
+        const indentStyle = options.indentLevel > 0
+            ? `style="--lolicon-indent-level: ${options.indentLevel}"`
+            : '';
+
+        const rowClass = classes.join(' ');
         switch (type) {
             case 'input': {
                 const { step, min, max } = config[name];
-                return `<div class="${rowClass}">
+                return `<div class="${rowClass}" ${indentStyle}>
                     <label for="${name}Input">${translate(name)}</label>
                     <input type="number" id="${name}Input" value="${value}" step="${step}" min="${min}" max="${max}">
                 </div>`;
             }
             case 'checkbox': {
-                return `<div class="${rowClass}">
+                return `<div class="${rowClass}" ${indentStyle}>
                     <label for="${name}Input">${translate(name)}</label>
                     <input type="checkbox" id="${name}Input" ${value ? "checked" : ""}>
                 </div>`;
@@ -874,12 +1052,22 @@
             case 'select': {
                 const items = config[name].options;
                 const optionsHTML = items.map((text, idx) =>
-                    `<option value="${idx}" ${idx === value ? "selected" : ""}>${text}</option>`,
+                    `<option value="${idx}" ${idx === value ? "selected" : ""}>${translate(text)}</option>`,
                 ).join('');
-                return `<div class="${rowClass}">
+                return `<div class="${rowClass}" ${indentStyle}>
                     <label for="${name}Input">${translate(name)}</label>
                     <select id="${name}Input">${optionsHTML}</select>
                 </div>`;
+            }
+            case 'viewToggle': {
+                const isActive = isFullMode;
+                const btnClass = `lolicon-settings-toggle-btn ${isActive ? 'active' : ''}`;
+                const btnText = isActive ? translate('hideInactiveSettings') : translate('showAllSettings');
+                return `
+                <button id="toggleViewBtn" class="${btnClass}">
+                    <svg viewBox="0 0 24 24"><path d="M12 5.83L15.17 9l1.41-1.41L12 3 7.41 7.59 8.83 9 12 5.83zm0 12.34L8.83 15l-1.41 1.41L12 21l4.59-4.59L15.17 15 12 18.17z"/></svg>
+                    <span>${btnText}</span>
+                </button>`;
             }
             case 'buttons': {
                 return `
@@ -893,97 +1081,201 @@
         }
     }
 
-    /** 获取面板内容 */
-    function getPanelContent() {
-        let controlNames = [];
-
-        if (pageInfo.listDisplayMode === 't') {
-            controlNames = [
-                'zoomFactorS', 'margin', 'pageMargin', 'pagePadding',
-                'fullScreenMode', 'squareMode', 'showIndex',
-                'infiniteScroll', 'thumbHoverZoom',
-                'quickTag', 'quickFavorite',
-                'liveURLUpdate',
-            ];
-        } else if (pageInfo.listDisplayMode) {
-            controlNames = [
-                'pageMargin', 'pagePadding',
-                'fullScreenMode', 'showIndex',
-                'infiniteScroll',
-                'quickTag', 'quickFavorite',
-                'liveURLUpdate',
-            ];
-        } else if (pageInfo.isGalleryPage) {
-            controlNames = [
-                'zoomFactorG', 'spacing', 'pageMargin',
-                'fullScreenMode',
-                'moreThumbnail', 'thumbScroll', 'thumbHoverZoom',
-                'tagSearchG', 'quickFavorite',
-            ];
-        } else if ($i('searchbox') || pageInfo.isFavoritesPage) {
-            controlNames = [
-                'pageMargin', 'pagePadding',
-                'fullScreenMode',
-                'quickTag',
-            ];
-        } else if (!toggleEHInfo.allowed) {
-            return createControlHTML('message', 'invalidPage');
-        }
-
-        if (toggleEHInfo.allowed) {
-            controlNames.push('scriptSettings', 'toggleEH');
-        }
-
-        const htmlPieces = [];
-        controlNames.forEach((name) => {
-            let type;
-            if (typeof config[name].def === 'boolean') {
-                type = 'checkbox';
-            } else if (config[name].options) {
-                type = 'select';
-            } else {
-                type = 'input';
-            }
-            htmlPieces.push(createControlHTML(type, name, cfg[name]));
-
-            // 根据当前主开关 name，渲染对应的额外子控件
-            const extraItems = extraControls[name];
-            if (extraItems && cfg[name]) {
-                extraItems.forEach(([type, cfgKey, isIndented = true]) => {
-                    let html = createControlHTML(type, cfgKey, cfg[cfgKey], { isIndented: isIndented });
-                    htmlPieces.push(html);
-                });
-            }
-        });
-
-        return htmlPieces.join('');
-    }
-
-    /** 额外子控件配置表：主开关名 -> [控件类型, 子控件名, 是否缩进(默认 true) */
+    /** 子项联动配置表：主开关名 -> [子控件名, 是否缩进(默认 true), 显示条件(默认 true，可填数或数组)] */
     const extraControls = {
-        infiniteScroll: [['input', 'maxPagesS']],
-        moreThumbnail: [['input', 'maxPagesG']],
-        tagSearchG: [['checkbox', 'quickTag', false]],
-        quickFavorite: [['select', 'favLayout']],
+        layoutEnabledL: [
+            ['layoutSizeModeT'],
+            ['zoomFactorT'],
+            ['margin'],
+            ['squareMode'],
+            ['pageMarginL'],
+            ['pagePadding'],
+            ['fullWidthModeL'],
+        ],
+        layoutEnabledG: [
+            ['layoutSizeModeG'],
+            ['zoomFactorG'],
+            ['spacing'],
+            ['pageMarginG'],
+            ['fullWidthModeG'],
+        ],
+        layoutSizeModeT: [
+            ['min_ColumnCountT', true, 1],
+            ['max_ColumnCountT', true, 1],
+            ['min_FixedWidthT', true, 2],
+            ['max_FixedWidthT', true, 2],
+        ],
+        layoutSizeModeG: [
+            ['min_ColumnCountG', true, 1],
+            ['max_ColumnCountG', true, 1],
+            ['min_FixedWidthG', true, 2],
+            ['max_FixedWidthG', true, 2],
+        ],
+        infiniteScroll: [['maxPagesL']],
+        moreThumbnail: [['maxPagesG']],
+        tagSearchG: [['quickTag']],
+        quickFavorite: [['favLayout']],
         thumbHoverZoom: [
-            ['input', 'hoverScale'],
-            ['input', 'hoverDelay'],
-            ['checkbox', 'hoverLoadLargeImage'],
+            ['hoverScale'],
+            ['hoverDelay'],
+            ['hoverLoadLargeImage'],
         ],
     };
 
+    /** 根据配置 key 自动推断控件类型 */
+    function getControlType(key) {
+        if (typeof config[key].def === 'boolean') return 'checkbox';
+        if (config[key].options) return 'select';
+        return 'input';
+    }
+
+    /** 获取当前页面所有特征标签 */
+    function getActiveTags() {
+        const tags = new Set(['All']); // 默认包含通用项
+
+        if (pageInfo.listDisplayMode === 't') tags.add('T'); // 列表页-缩略图模式
+        if (pageInfo.listDisplayMode) tags.add('L'); // 列表页
+        if (pageInfo.isGalleryPage) tags.add('G'); // 画廊页
+        if (pageInfo.hasSearchBox) tags.add('S'); // 搜索栏
+        if ($i('nb')) tags.add('NB'); // 导航栏
+        if (toggleEHInfo.allowed) tags.add('EH'); // 允许切换网址
+
+        return tags;
+    }
+
+    /** 获取面板内容 */
+    function getPanelContent() {
+        const activeTags = getActiveTags();
+        const htmlPieces = [];
+
+        // 判断项是否属于当前页面
+        const getIsInPage = (name) => {
+            const itemCfg = config[name];
+            if (!itemCfg || !itemCfg.pages) return false;
+            const p = itemCfg.pages;
+            return Array.isArray(p) ? p.some((t) => activeTags.has(t)) : activeTags.has(p);
+        };
+
+        // 动态依赖解析
+        const logicDepMap = {};
+        for (const [pKey, subs] of Object.entries(extraControls)) {
+            const pIsInPage = getIsInPage(pKey);
+            subs.forEach(([sKey, indent = true, cond]) => {
+                // 优先级：如果已绑定了原生父项，则不再被幽灵父项覆盖
+                const existingDep = logicDepMap[sKey];
+                if (!existingDep || (!getIsInPage(existingDep.pKey) && pIsInPage)) {
+                    logicDepMap[sKey] = { pKey, cond, indent };
+                }
+            });
+        }
+
+        // 初始根节点判定
+        const allSubKeys = new Set(Object.values(extraControls).flatMap((arr) => arr.map((i) => i[0])));
+        const topLevelKeys = Object.keys(config).filter((k) => {
+            const dep = logicDepMap[k];
+            if (!dep) return true; // 本身就是根
+            // 如果父项不在当前页，且 [自己是在当前页的原生项] ，则在当前页作为根节点出现
+            if (!getIsInPage(dep.pKey) && getIsInPage(k)) return true;
+            // 如果父子都不在当前页，则它应该由幽灵父项带出来，不作为根
+            return false;
+        }).reverse();
+
+        const stack = topLevelKeys.map((k) => ({ name: k, indentLevel: 0, parentState: true }));
+        const processed = new Set();
+        const renderQueue = [];
+
+        // 栈驱动渲染
+        while (stack.length > 0) {
+            const { name, indentLevel, parentState } = stack.pop();
+            if (processed.has(name)) continue;
+
+            const dep = logicDepMap[name];
+            const isInPage = getIsInPage(name);
+            let currentIndent = indentLevel;
+            let logicCondMet = true;
+
+            if (dep) {
+                const pValue = cfg[dep.pKey];
+                const pIsInPage = getIsInPage(dep.pKey);
+
+                logicCondMet = dep.cond === undefined
+                    ? pValue === true
+                    : (Array.isArray(dep.cond) ? dep.cond.includes(pValue) : pValue === dep.cond);
+
+                // 只有当 [父项非原生] 且 [子项是原生] 时，才自立门户 (缩进 0)
+                if (!pIsInPage && isInPage) {
+                    currentIndent = 0;
+                }
+            }
+
+            const isOrphan = dep ? !getIsInPage(dep.pKey) : true;
+            const isActive = isOrphan
+                ? (isInPage && logicCondMet)
+                : (parentState && isInPage && logicCondMet);
+
+            if (!isActive && !isFullMode) continue;
+
+            renderQueue.push({ name, isActive, indentLevel: currentIndent });
+            processed.add(name);
+
+            // 压入子项
+            const subItems = extraControls[name];
+            if (subItems) {
+                const currentAsParentState = isActive && (cfg[name] === true || typeof cfg[name] !== 'boolean');
+                for (let i = subItems.length - 1; i >= 0; i--) {
+                    const [subKey, subIndent] = subItems[i];
+
+                    // 如果我是幽灵父项，我不能带走已经是原生根节点的子项
+                    const subIsInPage = getIsInPage(subKey);
+                    if (!getIsInPage(name) && subIsInPage) continue;
+
+                    stack.push({
+                        name: subKey,
+                        indentLevel: (subIndent !== false) ? currentIndent + 1 : currentIndent,
+                        parentState: currentAsParentState
+                    });
+                }
+            }
+        }
+
+        // 渲染 HTML
+        renderQueue.forEach((item) => {
+            const { name, isActive, indentLevel } = item;
+            htmlPieces.push(createControlHTML(getControlType(name), name, cfg[name], {
+                indentLevel,
+                extraClass: isFullMode && !isActive
+            }));
+        });
+
+        return htmlPieces.length > 0 ? htmlPieces.join('') : createControlHTML('message', 'invalidPage');
+    }
+
+    let isFullMode;
     /** 创建和显示设置面板 */
     function showSettingsPanel() {
         if ($i('lolicon-settings-panel')) return;
         const panel = $el('div');
         panel.id = 'lolicon-settings-panel';
         panel.innerHTML = `
-            <h3 class="lolicon-settings-header">${translate('settingsPanel')}</h3>
+            <h3 class="lolicon-settings-header">${translate('settings')}</h3>
             <div id='settings-controls' class="lolicon-settings-body">${getPanelContent()}</div>
+            <div class="lolicon-settings-toggle-bar">${createControlHTML('viewToggle')}</div>
             <div class="lolicon-settings-footer">${createControlHTML('buttons')}</div>
         `;
 
         document.body.appendChild(panel);
+
+        // 绑定切换视图事件
+        const toggleBtn = $i('toggleViewBtn');
+        toggleBtn.onclick = () => {
+            isFullMode = !isFullMode;
+            panel.refreshControls();
+            const span = toggleBtn.querySelector('span');
+            span.textContent = isFullMode ? translate('hideInactiveSettings') : translate('showAllSettings');
+            toggleBtn.classList.toggle('active', isFullMode);
+        };
+
+        enablePanelTop(panel);
         enablePanelDrag(panel);
 
         // 面板整体的行为与按钮绑定
@@ -998,25 +1290,59 @@
             if (e.target.type === 'number') handleWheelChange(e);
         }, { passive: false });
 
-        const saveBtn = $i('saveSettingsBtn'), cancelBtn = $i('cancelSettingsBtn');
-        if (pageInfo.listDisplayMode || $i('searchbox') || pageInfo.isGalleryPage) {
-            saveBtn?.addEventListener('click', () => saveSettings(panel));
-            cancelBtn?.addEventListener('click', () => cancelSettings(panel));
-        } else {
-            saveBtn?.addEventListener('click', () => panel.remove());
-            cancelBtn?.addEventListener('click', () => panel.remove());
-        }
+        $i('saveSettingsBtn')?.addEventListener('click', () => saveSettings(panel));
+        $i('cancelSettingsBtn')?.addEventListener('click', () => cancelSettings(panel));
 
         // 暴露局部刷新函数，方便外部调用
         panel.refreshControls = () => refreshSettingsControls(panel);
     }
 
-    // 局部刷新（只替换 #settings-controls 的 innerHTML，保留容器和已绑定的委托事件）
+    /** 局部刷新（只替换 #settings-controls 的 innerHTML，保留容器和已绑定的委托事件） */
     function refreshSettingsControls(panel) {
         const container = panel.querySelector('#settings-controls');
         if (!container) return;
         container.innerHTML = getPanelContent();
         // 不需要重新绑定事件，因为事件委托绑定在 container 元素上并不会被替换
+    }
+
+    /** 复选框和展示逻辑有关，局部刷新控件 */
+    function tryRefreshPanel(key) {
+        if (Object.keys(extraControls).includes(key)) {
+            const panel = $i('lolicon-settings-panel');
+            if (panel && typeof panel.refreshControls === 'function') {
+                panel.refreshControls();
+            }
+        }
+    }
+
+    /** 验证输入数值的合法性并同步联动项状态 */
+    function validateInput(key, value, isSilent = false) {
+        const isMin = key.startsWith('min_');
+        const isMax = key.startsWith('max_');
+        const peerKey = (isMin || isMax) ? (isMin ? key.replace('min_', 'max_') : key.replace('max_', 'min_')) : null;
+        const peerInput = peerKey ? $i(`${peerKey}Input`) : null;
+        const peerValue = peerInput ? parseFloat(peerInput.value) : NaN;
+
+        // 同步联动项
+        if (!isSilent && peerInput && config[peerKey]) {
+            const isLogicConflict = isMin ? (value > peerValue) : (value < peerValue);
+            if (isNaN(value) || !isLogicConflict) {
+                if (!isNaN(peerValue) && peerValue >= config[peerKey].min && peerValue <= config[peerKey].max) {
+                    peerInput.classList.remove('lolicon-settings-input-error');
+                    cfg[peerKey] = peerValue;
+                }
+            } else if (isLogicConflict) {
+                peerInput.classList.add('lolicon-settings-input-error');
+            }
+        }
+
+        // 验证输入数值的合法性
+        if (isNaN(value) || value < config[key].min || value > config[key].max) return false;
+        if (peerKey && !isNaN(peerValue)) {
+            if (isMin ? value > peerValue : value < peerValue) return false;
+        }
+
+        return true;
     }
 
     /** 从元素 ID 中提取配置项的 Key */
@@ -1027,11 +1353,8 @@
         const { id, value } = event.target;
         const key = getCfgKey(id);
         const numValue = parseFloat(value);
-        if (
-            config[key] &&
-            numValue >= config[key].min &&
-            numValue <= config[key].max
-        ) {
+
+        if (validateInput(key, numValue)) {
             event.target.classList.remove('lolicon-settings-input-error');
             cfg[key] = numValue;
             applyChanges();
@@ -1046,15 +1369,7 @@
         const key = getCfgKey(id);
         cfg[key] = checked;
         applyChanges();
-
-        // 如果这个复选框和展示逻辑有关，局部刷新控件
-        const refreshKeys = Object.keys(extraControls);
-        if (refreshKeys.includes(getCfgKey(id))) {
-            const panel = $i('lolicon-settings-panel');
-            if (panel && typeof panel.refreshControls === 'function') {
-                panel.refreshControls();
-            }
-        }
+        tryRefreshPanel(key);
     }
 
     /** 下拉菜单变化事件 */
@@ -1064,6 +1379,7 @@
         const numValue = parseInt(value);
         cfg[key] = numValue;
         applyChanges();
+        tryRefreshPanel(key);
     }
 
     /** 滚轮事件处理 */
@@ -1084,7 +1400,7 @@
         panel.querySelectorAll('input[type="number"]').forEach((input) => {
             const key = input.id.replace('Input', '');
             const value = parseFloat(input.value);
-            if (isNaN(value) || value < config[key].min || value > config[key].max) {
+            if (!validateInput(key, value, true)) {
                 errors.push(translate(key + 'Range'));
             }
         });
@@ -1110,6 +1426,20 @@
     function initialize() {
         for (const [key, cfgItem] of Object.entries(config)) {
             let val = GM_getValue(key);
+
+            if (val === undefined) {
+                if (key.endsWith('T') || key.endsWith('L')) {
+                    const oldKey = key.slice(0, -1) + 'S';
+                    const oldVal = GM_getValue(oldKey);
+
+                    if (oldVal !== undefined) {
+                        val = oldVal;
+                        GM_setValue(key, val);
+                        GM_deleteValue(oldKey);
+                    }
+                }
+            }
+
             if (val === undefined) {
                 GM_setValue(key, cfgItem.def);
                 val = cfgItem.def;
@@ -1124,139 +1454,185 @@
 
     /** 计算尺寸 */
     function calculateDimensions() {
-        layout.columnWidthS = 250 * cfg.zoomFactorS + cfg.margin * 2; // 每列的宽度 250-400 270
-        layout.columnWidthSb = layout.columnWidthS + (2 / devicePixelRatio); // 加上缩略图边框，边框宽度受设备像素比影响
-        layout.columnWidthG = 100 * cfg.zoomFactorG + cfg.spacing; // 画廊每列的宽度(100X) spacing:15  + (2 / devicePixelRatio)
-        layout.marginAdjustmentS = 14 + cfg.pageMargin * 2; // 页面边距调整值 body-padding:2 ido-padding:5
-        layout.marginAdjustmentG = 34 + cfg.pageMargin * 2; // 画廊页面边距调整值 body-padding:2 gdt-padding:15
-        layout.paddingAdjustmentS = cfg.pagePadding * 2; // 页面内边距调整值
+        layout.columnWidthL = 250 * cfg.zoomFactorT + cfg.margin * 2; // 每列的宽度 250-400 270
+        layout.columnWidthLb = layout.columnWidthL + (2 / getDPR()); // 加上缩略图边框，边框宽度受设备像素比影响
+        layout.columnWidthG = 100 * cfg.zoomFactorG + cfg.spacing; // 画廊每列的宽度(100X) spacing:15  + (2 / getDPR())
+        layout.marginAdjustmentL = 14 + cfg.pageMarginL * 2; // 页面边距调整值 body-padding:2 ido-padding:5
+        layout.marginAdjustmentG = 34 + cfg.pageMarginG * 2; // 画廊页面边距调整值 body-padding:2 gdt-padding:15
+        layout.paddingAdjustmentL = cfg.pagePadding * 2; // 页面内边距调整值
     }
 
     /** 搜索类别行td */
     let initialRowTDs = null;
 
-    /** 根据页面宽度动态调整列数 画廊列表页面 */
-    function adjustColumnsS() {
-        console.log('LOLICON 画廊列表页面调整');
+    /** 调整列表页 */
+    function adjustColumnsL() {
+        LLog('列表页调整');
 
         const width = document.documentElement.clientWidth; // window.innerWidth
         const minWidthNumber = parseFloat(getComputedStyle($c('ido')[0]).minWidth);
 
-        let clientWidthS_itg = Math.max(width - layout.marginAdjustmentS - layout.paddingAdjustmentS, minWidthNumber); // 计算宽度
-        layout.columnsS = Math.max(Math.floor(clientWidthS_itg / layout.columnWidthSb), 1); // 计算列数
-        const baseWidth = (pageInfo.listDisplayMode === 't') ? layout.columnsS * layout.columnWidthSb : Math.min(720 + 670 + 14, clientWidthS_itg);
-        clientWidthS_itg = Math.max(baseWidth, cfg.fullScreenMode ? clientWidthS_itg : minWidthNumber); // 根据全屏模式调整
+        const clientWidthLO = Math.max(width - layout.marginAdjustmentL - layout.paddingAdjustmentL, minWidthNumber); // 计算宽度
 
-        let clientWidthS_ido = Math.min(clientWidthS_itg + layout.paddingAdjustmentS, width);
-        $c('ido')[0].style.maxWidth = clientWidthS_ido + 'px'; // 设置最大宽度 1370
+        // 计算列数
+        if (cfg.layoutSizeModeT === 0) {
+            layout.columnsT = Math.max(1, Math.floor(clientWidthLO / layout.columnWidthLb));
+        } else if (cfg.layoutSizeModeT === 1) { // 限制列数模式
+            let potentialCols = Math.floor(clientWidthLO / layout.columnWidthLb);
+            layout.columnsT = Math.max(cfg.min_ColumnCountT, Math.min(potentialCols, cfg.max_ColumnCountT));
+        } else if (cfg.layoutSizeModeT === 2) { // 限制宽度模式
+            let limitedWidth = Math.max(cfg.min_FixedWidthT, Math.min(clientWidthLO, cfg.max_FixedWidthT));
+            layout.columnsT = Math.max(1, Math.floor(limitedWidth / layout.columnWidthLb));
+        }
+
+        // 计算宽度
+        let clientWidthL_itg;
+        if (cfg.fullWidthModeL) {
+            if (cfg.layoutSizeModeT === 0) clientWidthL_itg = Math.max(minWidthNumber, clientWidthLO);
+            else if (cfg.layoutSizeModeT === 1) clientWidthL_itg = Math.max(clientWidthLO, layout.columnsT * layout.columnWidthLb);
+            else if (cfg.layoutSizeModeT === 2) clientWidthL_itg = Math.max(cfg.min_FixedWidthT, Math.min(clientWidthLO, cfg.max_FixedWidthT));
+        } else {
+            clientWidthL_itg = (pageInfo.listDisplayMode === 't')
+                ? Math.max(minWidthNumber, layout.columnsT * layout.columnWidthLb)
+                : Math.max(minWidthNumber, Math.min(720 + 670 + 14, clientWidthLO));
+        }
+
+        // 应用样式
+        let clientWidthL_ido = clientWidthL_itg + layout.paddingAdjustmentL;
+        $c('ido')[0].style.maxWidth = !cfg.layoutEnabledL ? (pageInfo.listDisplayMode === 't' ? '1370px' : '') : clientWidthL_ido + 'px'; // 设置最大宽度 1370
         if (pageInfo.listDisplayMode === 't' && $c('itg gld')[0]) {
-            $c('itg gld')[0].style.gridTemplateColumns = 'repeat(' + layout.columnsS + ', 1fr)'; // 设置列数
-            $c('itg gld')[0].style.width = clientWidthS_itg + 'px'; // 设置边距 '99%'
+            $c('itg gld')[0].style.gridTemplateColumns = !cfg.layoutEnabledL ? '' : 'repeat(' + layout.columnsT + ', 1fr)'; // 设置列数
+            $c('itg gld')[0].style.width = !cfg.layoutEnabledL ? '' : clientWidthL_itg + 'px'; // 设置边距 '99%'
         } else if ($c('itg')[0]) {
-            $c('itg')[0].style.maxWidth = clientWidthS_itg + 'px';
-            $c('itg')[0].style.width = clientWidthS_itg + 'px';
+            $c('itg')[0].style.maxWidth = !cfg.layoutEnabledL ? '' : clientWidthL_itg + 'px';
+            $c('itg')[0].style.width = !cfg.layoutEnabledL ? '' : clientWidthL_itg + 'px';
+        }
+
+        const totalRequiredWidthL = clientWidthL_ido + layout.marginAdjustmentL;
+        if (totalRequiredWidthL > width) {
+            document.body.style.minWidth = !cfg.layoutEnabledL ? '' : totalRequiredWidthL + 'px';
+        } else {
+            document.body.style.minWidth = '';
         }
 
         const searchnavEls = $c('searchnav');
-        const paddingValue = (width - layout.marginAdjustmentS - layout.paddingAdjustmentS >= minWidthNumber)
+        const paddingValue = (width - layout.marginAdjustmentL - layout.paddingAdjustmentL >= minWidthNumber)
             ? cfg.pagePadding
-            : (width - minWidthNumber - layout.marginAdjustmentS) / 2;
+            : (width - minWidthNumber - layout.marginAdjustmentL) / 2;
         for (let i = 0; i < 2; i++) {
             const el = searchnavEls[i];
             if (!el) continue;
-            el.children[0].style.padding = '0 0 0 ' + + paddingValue + 'px';
-            el.children[6].style.padding = '0 ' + paddingValue + 'px 0 0';
+            el.children[0].style.padding = !cfg.layoutEnabledL ? '' : '0 0 0 ' + + paddingValue + 'px';
+            el.children[6].style.padding = !cfg.layoutEnabledL ? '' : '0 ' + paddingValue + 'px 0 0';
         }
 
-        const isLargerWidth = clientWidthS_ido >= 720 + 670 + 14 + layout.paddingAdjustmentS; //1460
+        const isLargerWidth = cfg.layoutEnabledL && (clientWidthL_ido >= 720 + 670 + 14 + layout.paddingAdjustmentL); //1460
         adjustSearchBox(isLargerWidth);
 
-        // 调整更窄的收藏页面，和首页保持一致
-        if (pageInfo.isFavoritesPage && clientWidthS_ido < (930 + layout.paddingAdjustmentS)) {
-            const noselWidth = Math.max(735, Math.min(825, clientWidthS_ido));
-            if ($c('nosel')[1]) { $c('nosel')[1].style.width = noselWidth + 'px'; }
+        // 调整收藏页面
+        if (pageInfo.isFavoritesPage) {
             const fpElements = $$('div.fp');
-            const fpWidth = Math.max(142, Math.min(160, (clientWidthS_ido - 16) / 5 - 1)) + 'px';
-            for (let i = 0; i < Math.min(10, fpElements.length); i++) {
-                fpElements[i].style.width = fpWidth;
-            }
-            const idoTarget3 = $('.ido > div:nth-child(3)');
-            if (idoTarget3) {
-                idoTarget3.style.width = noselWidth + 'px';
-                const inputTarget = idoTarget3.querySelector('form:nth-child(1) > div:nth-child(2) > input:nth-child(1)');
-                if (inputTarget) {
-                    inputTarget.setAttribute('size', Math.max(84, Math.min(90, 84 + (noselWidth - 735) / 15)));
-                }
-            }
-        } else if (pageInfo.isFavoritesPage) {
-            if ($c('nosel')[1]) { $c('nosel')[1].style.width = '825px'; }
-            const fpElements = $$('div.fp');
-            for (let i = 0; i < Math.min(10, fpElements.length); i++) {
-                fpElements[i].style.width = '160px';
-            }
-            const idoTarget3 = $('.ido > div:nth-child(3)');
-            if (idoTarget3) {
-                idoTarget3.style.width = (isLargerWidth ? 720 + 670 : 825) + 'px';
-                const inputTarget = idoTarget3.querySelector('form:nth-child(1) > div:nth-child(2) > input:nth-child(1)');
-                if (inputTarget) {
-                    inputTarget.setAttribute('size', '90');
-                }
-            }
-            $('form[action*="favorites.php"] input[name="f_search"]').style.width = (isLargerWidth ? '1230px' : '');
-        }
+            const searchInput = $('form[action*="favorites.php"] input[name="f_search"]');
+            const searchContainer = searchInput?.closest('.ido > div');
 
-        if (layout.columnsS != layout.OLDcolumnsS && cfg.liveURLUpdate && !pageInfo.isPopularPage && !pageInfo.isFavoritesPage) {
-            throttledGetRowInfo();
-            layout.OLDcolumnsS = layout.columnsS;
+            const isNarrowMode = cfg.layoutEnabledL && clientWidthL_ido < (930 + layout.paddingAdjustmentL);
+
+            const noselWidth = Math.max(735, Math.min(825, clientWidthL_ido));
+            if ($c('nosel')[1]) { $c('nosel')[1].style.width = (isNarrowMode ? noselWidth : 825) + 'px'; }
+
+            const fpWidth = Math.max(142, Math.min(160, (clientWidthL_ido - 16) / 5 - 1));
+            for (let i = 0; i < Math.min(10, fpElements.length); i++) {
+                fpElements[i].style.width = (isNarrowMode ? fpWidth : 160) + 'px';
+            }
+
+            if (searchContainer && isNarrowMode) {
+                searchContainer.style.width = noselWidth + 'px';
+                searchInput.setAttribute('size', Math.max(84, Math.min(90, 84 + (noselWidth - 735) / 15)));
+                searchInput.style.width = '';
+            } else if (searchContainer) {
+                searchContainer.style.width = (isLargerWidth ? 720 + 670 : 825) + 'px';
+                searchInput.setAttribute('size', '90');
+                searchInput.style.width = (isLargerWidth ? '1230px' : '');
+            }
         }
     }
 
-    /** 根据页面宽度动态调整列数 画廊页面 */
+    /** 调整画廊详情页面 */
     function adjustColumnsG() {
-        console.log('LOLICON 画廊页面调整');
+        LLog('画廊页面调整');
 
         const gdt = $i('gdt');
         if (gdt) {
             const width = window.innerWidth;
-            const isGT200 = gdt.classList.contains('gt200');
-            const pixelCorrection = 2 / devicePixelRatio;
+            const thumbScale = gdt.classList.contains('gt200') ? 2 : 1;
+            const pixelCorrection = 2 / getDPR();
 
-            const spacingCorrection = isGT200 ? cfg.spacing * 2 : cfg.spacing;
-            const columnWidthGL = isGT200 ? layout.columnWidthG * 2 + pixelCorrection : layout.columnWidthG + pixelCorrection;
+            const spacingCorrection = cfg.spacing * thumbScale;
+            const columnWidthGO = layout.columnWidthG * thumbScale + pixelCorrection;
 
-            const clientWidthGL = Math.max(700, width - layout.marginAdjustmentG) + spacingCorrection;
-            const columnsG = Math.floor(clientWidthGL / columnWidthGL);
-            const clientWidthG_gdt = cfg.fullScreenMode ? Math.max(700, width - layout.marginAdjustmentG) : Math.max(700, columnsG * columnWidthGL - spacingCorrection);
+            const clientWidthGO = Math.max(700, width - layout.marginAdjustmentG) + spacingCorrection; // 计算宽度
 
-            if ($c('gm')[0]) { $c('gm')[0].style.maxWidth = clientWidthG_gdt + 20 + 'px'; } // 设置最详情大宽度 720 960 1200
-            if ($c('gm')[1]) { $c('gm')[1].style.maxWidth = clientWidthG_gdt + 20 + 'px'; } // 设置最评论区大宽度 720 960 1200
-            if ($i('gdo')) { $i('gdo').style.maxWidth = clientWidthG_gdt + 20 + 'px'; } // 设置缩略图设置栏最大宽度 720 960 1200
+            // 计算列数
+            let columnsG;
+            if (cfg.layoutSizeModeG === 0) { // 自动模式
+                columnsG = Math.max(1, Math.floor(clientWidthGO / columnWidthGO));
+            } else if (cfg.layoutSizeModeG === 1) { // 限制列数模式
+                let potentialCols = Math.floor(clientWidthGO / columnWidthGO);
+                columnsG = Math.max(cfg.min_ColumnCountG * 2 / thumbScale, Math.min(potentialCols, cfg.max_ColumnCountG * 2 / thumbScale));
+            } else if (cfg.layoutSizeModeG === 2) { // 限制宽度模式
+                let limitedWidth = Math.max(cfg.min_FixedWidthG + spacingCorrection, Math.min(clientWidthGO, cfg.max_FixedWidthG + spacingCorrection));
+                columnsG = Math.max(1, Math.floor(limitedWidth / columnWidthGO));
+            }
+
+            // 计算宽度
+            let clientWidthG_gdt;
+            if (cfg.fullWidthModeG) {
+                if (cfg.layoutSizeModeG === 0) clientWidthG_gdt = clientWidthGO - spacingCorrection;
+                else if (cfg.layoutSizeModeG === 1) clientWidthG_gdt = Math.max(clientWidthGO - spacingCorrection, columnsG * columnWidthGO - spacingCorrection);
+                else if (cfg.layoutSizeModeG === 2) clientWidthG_gdt = Math.max(cfg.min_FixedWidthG, Math.min(clientWidthGO - spacingCorrection, cfg.max_FixedWidthG));
+            } else {
+                clientWidthG_gdt = Math.max(700, columnsG * columnWidthGO - spacingCorrection);
+            }
+
+            if ($c('gm')[0]) { $c('gm')[0].style.maxWidth = !cfg.layoutEnabledG ? '' : clientWidthG_gdt + 20 + 'px'; } // 设置最详情大宽度 720 960 1200
+            if ($c('gm')[1]) { $c('gm')[1].style.maxWidth = !cfg.layoutEnabledG ? '' : clientWidthG_gdt + 20 + 'px'; } // 设置最评论区大宽度 720 960 1200
+            if ($i('gdo')) { $i('gdo').style.maxWidth = !cfg.layoutEnabledG ? '' : clientWidthG_gdt + 20 + 'px'; } // 设置缩略图设置栏最大宽度 720 960 1200
 
             let clientWidthG_gdt_gd2 = clientWidthG_gdt - 255; // 设置标题栏宽度 710 925
             let clientWidthG_gdt_gmid = clientWidthG_gdt - 250; // 设置标签栏宽度 710 930
             let clientWidthG_gdt_gd4 = clientWidthG_gdt - 600; // 设置标签栏宽度 360 580
+            if ($i('gd1')) { $i('gd1').style.display = ''; }
 
-            if (width <= 1230) {
+            let layoutWidth = (cfg.layoutSizeModeG === 0 && cfg.fullWidthModeG) ? width : clientWidthG_gdt + 2 * cfg.pageMarginG + 34;
+            if (width <= 1230 || (cfg.layoutEnabledG && layoutWidth <= 1230 - 190)) {
                 clientWidthG_gdt_gd2 = clientWidthG_gdt_gd2 + 255;
                 clientWidthG_gdt_gmid = clientWidthG_gdt_gmid + 255;
                 clientWidthG_gdt_gd4 = clientWidthG_gdt_gd4 + 255;
+                if ($i('gd1')) { $i('gd1').style.display = 'none'; }
             }
 
-            if ($i('gd2')) { $i('gd2').style.width = clientWidthG_gdt_gd2 + 'px'; }
-            if ($i('gmid')) { $i('gmid').style.width = clientWidthG_gdt_gmid + 'px'; }
-            if ($i('gd4')) { $i('gd4').style.width = clientWidthG_gdt_gd4 + 'px'; }
+            if ($i('gd2')) { $i('gd2').style.width = !cfg.layoutEnabledG ? '' : clientWidthG_gdt_gd2 + 'px'; }
+            if ($i('gmid')) { $i('gmid').style.width = !cfg.layoutEnabledG ? '' : clientWidthG_gdt_gmid + 'px'; }
+            if ($i('gd4')) { $i('gd4').style.width = !cfg.layoutEnabledG ? '' : clientWidthG_gdt_gd4 + 'px'; }
 
 
-            gdt.style.maxWidth = clientWidthG_gdt + 'px'; // 设置最大宽度 700 940 1180
-            gdt.style.gridTemplateColumns = 'repeat(' + columnsG + ', 1fr)';
-            gdt.style.gap = cfg.spacing + 'px';
+            gdt.style.maxWidth = !cfg.layoutEnabledG ? '' : clientWidthG_gdt + 'px'; // 设置最大宽度 700 940 1180
+            gdt.style.gridTemplateColumns = !cfg.layoutEnabledG ? '' : 'repeat(' + columnsG + ', 1fr)';
+            gdt.style.gap = !cfg.layoutEnabledG ? '' : cfg.spacing + 'px';
 
-            const isLargerWidth = clientWidthG_gdt >= 720 + 670 + 14; //1460
+            const totalRequiredWidthG = clientWidthG_gdt + layout.marginAdjustmentG;
+            if (cfg.layoutEnabledG && totalRequiredWidthG > width) {
+                document.body.style.minWidth = totalRequiredWidthG + 'px';
+            } else {
+                document.body.style.minWidth = '';
+            }
+
+            const isLargerWidth = cfg.layoutEnabledG && (clientWidthG_gdt >= 720 + 670 + 14); //1460
             adjustSearchBox(isLargerWidth);
         }
     }
 
-    /** 根据页面宽度动态调搜索盒子 */
+    /** 调整搜索盒子 */
     function adjustSearchBox(isLargerWidth) {
         const searchbox = $i('searchbox'); // 搜索盒子
         if (searchbox) {
@@ -1295,127 +1671,138 @@
         }
     }
 
-    /** 收集画廊列表页面信息 */
-    function collectDataS() {
-        const strategies = {
-            m: 'td:nth-child(4) > a:nth-child(1)',
-            p: 'td:nth-child(4) > a:nth-child(1)',
-            l: 'td:nth-child(3) > a:nth-child(1)',
-            e: 'td:nth-child(1) > div:nth-child(1) > a:nth-child(1)',
-            t: 'a:nth-child(1)',
-        };
+    /** 收集列表页信息 */
+    function collectDataL(root = document) {
+        LLog('收集列表页信息');
         const isThumbnailMode = pageInfo.listDisplayMode === 't';
-        const gElements = isThumbnailMode ? $$('.gl1t') : $$('.itg > tbody > tr:not(#lolicon-loading-indicator)');
+        const gElements = isThumbnailMode
+            ? root.querySelectorAll('.gl1t')
+            : (root === document)
+                ? root.querySelectorAll('.itg > tbody > tr:not(#lolicon-loading-indicator)')
+                : Array.from(root.children);
+
+        const newData = [];
+
         gElements.forEach((el, index) => {
-            if (index === pageItemsIndex) {
-                pageItemsIndex++;
-                if (!isThumbnailMode && el.querySelector('td.itd')) return; // 跳过广告行
+            if (el._loliconData) return;
 
-                const glink = el.querySelector('.glink');
-                const url = glink?.closest('a')?.href;
+            if (!isThumbnailMode && el.querySelector('td.itd')) return; // 跳过广告行
 
-                const urlElement = el.querySelector(strategies[pageInfo.listDisplayMode]);
-                const match = urlElement?.href.match(/\/g\/(\d+)\//);
-                const gid = match ? Number(match[1]) : null;
+            const glink = el.querySelector('.glink');
+            if (!glink) return; // 跳过非画廊 如表头
 
-                if (isThumbnailMode) {
-                    const gl3t = el.querySelector('.gl3t');
-                    const gl4t = el.querySelector('.gl4t');
-                    const gl5t = el.querySelector('.gl5t');
-                    const gl6t = el.querySelector('.gl6t');
-                    const gl5tFirstChildDiv = gl5t?.querySelector('div:nth-child(1)');
-                    const img = gl3t?.querySelector('img');
+            const url = glink.closest('a')?.href;
+            const match = url?.match(/\/g\/(\d+)\//);
+            const gid = match ? Number(match[1]) : null;
 
-                    pageItemsData.push({
-                        el,
-                        gl3t,
-                        gl4t,
-                        gl5t,
-                        gl6t,
-                        glink,
-                        gl5tFirstChildDiv,
-                        img,
-                        gid,
-                        originalWidth: gl3t?.clientWidth,
-                        originalHeight: gl3t?.clientHeight,
-                        originalImgWidth: img?.clientWidth,
-                        originalImgHeight: img?.clientHeight,
-                        url,
-                    });
-                } else {
-                    pageItemsData.push({
-                        el,
-                        glink,
-                        gid,
-                        url,
-                    });
-                }
+            let itemData = {
+                el,
+                glink,
+                gid,
+                url,
+                pageIndex: pageItemsData.length,
+                lastStatus: null,
+            };
+
+            if (isThumbnailMode) {
+                const gl3t = el.querySelector('.gl3t');
+                const gl4t = el.querySelector('.gl4t');
+                const gl5t = el.querySelector('.gl5t');
+                const gl6t = el.querySelector('.gl6t');
+                const gl5tFirstChildDiv = gl5t?.querySelector('div:nth-child(1)');
+                const img = gl3t?.querySelector('img');
+                const gl3tStyle = gl3t ? gl3t.style : null;
+                const imgStyle = img ? img.style : null;
+
+                Object.assign(itemData, {
+                    gl3t,
+                    gl4t,
+                    gl5t,
+                    gl6t,
+                    gl5tFirstChildDiv,
+                    img,
+                    originalGl3tWidth: gl3tStyle ? parseFloat(gl3tStyle.width) : 0,
+                    originalGl3tHeight: gl3tStyle ? parseFloat(gl3tStyle.height) : 0,
+                    originalImgWidth: imgStyle ? parseFloat(imgStyle.width) : 0,
+                    originalImgHeight: imgStyle ? parseFloat(imgStyle.height) : 0,
+                    originalImgTop: imgStyle ? parseFloat(imgStyle.top) : 0,
+                });
             }
+
+            el._loliconData = itemData;
+            pageItemsData.push(itemData);
+            newData.push(itemData);
         });
+
+        return newData;
     }
 
     /** 收集画廊页面信息 */
-    function collectDataG() {
-        const gdt = $i('gdt');
+    function collectDataG(root = document) {
+        LLog('收集画廊页面信息');
+        const gdt = (root === document) ? $i('gdt') : root;
         const gdtThumbsSingle = gdt.querySelectorAll('a > div:nth-child(1)');
         const gdtThumbsDouble = gdt.querySelectorAll('a > div:nth-child(1) > div:nth-child(1)');
         const gdtThumbs = gdtThumbsDouble.length ? gdtThumbsDouble : gdtThumbsSingle;
         const gdtThumbPages = gdt.querySelectorAll('a > div:nth-child(1) > div:nth-child(2)');
 
         const spriteCountMap = new Map(); // 记录每张背景图出现次数
+        const newData = [];
 
         gdtThumbs.forEach((el, index) => {
-            if (index === pageItemsIndex) {
-                pageItemsIndex++;
+            if (el._loliconData) return;
 
-                const style = getComputedStyle(el);
-                const backgroundPosition = style.backgroundPosition;
-                const backgroundImage = style.backgroundImage;
+            const style = el.style;
+            const backgroundPositionX = parseFloat(style.backgroundPosition);
+            const backgroundImage = style.backgroundImage;
 
-                const spriteIndex = (spriteCountMap.get(backgroundImage) || 0) + 1;
-                spriteCountMap.set(backgroundImage, spriteIndex);
+            const spriteIndex = (spriteCountMap.get(backgroundImage) || 0) + 1;
+            spriteCountMap.set(backgroundImage, spriteIndex);
 
-                const width = el.clientWidth;
-                const height = el.clientHeight;
-                const itemWidth = (width === 200 || height === 300) ? 200 : 100;
+            const width = parseFloat(style.width);
+            const height = parseFloat(style.height);
+            const itemWidth = (width === 200 || height === 300) ? 200 : 100;
 
-                const pageEl = gdtThumbPages[index] ?? null;
-                const url = el.closest('a').href;
+            const pageEl = gdtThumbPages[index] ?? null;
+            const url = el.closest('a').href;
 
-                pageItemsData.push({
-                    el,
-                    backgroundPosition,
-                    backgroundImage,
-                    spriteIndex,
-                    itemsPerSprite: null,
-                    width,
-                    height,
-                    itemWidth,
-                    pageEl,
-                    url,
-                });
-            }
+            const itemData = {
+                el,
+                backgroundPositionX,
+                backgroundImage,
+                spriteIndex,
+                itemsPerSprite: null,
+                width,
+                height,
+                itemWidth,
+                pageEl,
+                url,
+                pageIndex: pageItemsData.length,
+                lastStatus: null,
+            };
+
+            el._loliconData = itemData;
+            pageItemsData.push(itemData);
+            newData.push(itemData);
         });
 
-        pageItemsData.forEach((data) => {
+        newData.forEach((data) => {
             if (data.itemsPerSprite == null) {
                 data.itemsPerSprite = spriteCountMap.get(data.backgroundImage) || 1;
             }
         });
+
+        return newData;
     }
 
-    /** 修改画廊列表缩略图大小 */
-    function modifyThumbnailSizeS() {
-        console.log('LOLICON 修改缩略图大小');
+    /** 修改列表页缩略图大小 */
+    function modifyThumbnailSizeL(items = pageItemsData) {
+        LLog('修改缩略图大小');
 
-        const minWidthNumber = parseFloat(getComputedStyle($c('ido')[0]).minWidth);
-        let columnWidthSbm = Math.max(layout.columnWidthSb, minWidthNumber / Math.floor(Math.max(minWidthNumber / layout.columnWidthSb, 1)));
+        const currentStatus = `${cfg.layoutEnabledL}_${cfg.zoomFactorT}_${cfg.margin}_${cfg.squareMode}`;
 
-        if (cfg.fullScreenMode) {
-            columnWidthSbm = layout.columnWidthS * 2;
-        }
-
-        pageItemsData.forEach((data, index) => {
+        items.forEach((data, index) => {
+            if (data.lastStatus === currentStatus) return;
             const {
                 el,
                 gl3t,
@@ -1426,34 +1813,38 @@
                 gl5tFirstChildDiv,
                 img,
                 gid,
-                originalWidth,
-                originalHeight,
+                originalGl3tWidth,
+                originalGl3tHeight,
                 originalImgWidth,
                 originalImgHeight,
+                originalImgTop,
                 url,
             } = data;
 
-            let zoomFactorL = cfg.zoomFactorS;
-
-            if (cfg.squareMode && originalWidth < 250) {
-                zoomFactorL = cfg.zoomFactorS * 250 / originalWidth;
+            let zoomFactorO = 1;
+            if (cfg.layoutEnabledL) {
+                if (cfg.squareMode && originalGl3tWidth < 250) {
+                    zoomFactorO = cfg.zoomFactorT * 250 / originalGl3tWidth;
+                } else {
+                    zoomFactorO = cfg.zoomFactorT;
+                }
             }
 
             // 设置 gl1t 的宽度
-            el.style.minWidth = layout.columnWidthS + 'px';
-            el.style.maxWidth = columnWidthSbm + 'px';
+            el.style.minWidth = !cfg.layoutEnabledL ? '' : layout.columnWidthL + 'px';
+            el.style.maxWidth = !cfg.layoutEnabledL ? '' : 'none';
 
             // 调整 gl3t 的宽高
             if (gl3t) {
-                const newWidth = originalWidth * zoomFactorL;
-                const newHeight = originalHeight * zoomFactorL;
+                const newWidth = originalGl3tWidth * zoomFactorO;
+                const newHeight = originalGl3tHeight * zoomFactorO;
                 gl3t.style.width = newWidth + 'px';
-                gl3t.style.height = (cfg.squareMode ? newWidth : newHeight) + 'px';
+                gl3t.style.height = (cfg.layoutEnabledL && cfg.squareMode ? newWidth : newHeight) + 'px';
             }
 
             // 小列宽时处理 gl5t 换行逻辑
             if (gl5t) {
-                const isSmallWidth = layout.columnWidthS <= 199;
+                const isSmallWidth = cfg.layoutEnabledL && layout.columnWidthL <= 199;
                 gl5t.style.flexWrap = isSmallWidth ? 'wrap' : '';
                 gl5t.style.height = isSmallWidth ? '92px' : '';
 
@@ -1462,54 +1853,70 @@
 
             // 调整图片的宽高
             if (img) {
-                const newImgWidth = originalImgWidth * zoomFactorL;
-                const newImgHeight = originalImgHeight * zoomFactorL;
-                let width = newImgWidth;
-                let height = newImgHeight;
-                let top = '';
-                let left = '';
-
-                if (cfg.squareMode) {
-                    if (newImgWidth <= newImgHeight) {
-                        top = ((originalWidth * zoomFactorL) - newImgHeight) / 2 + 'px';
+                if (cfg.layoutEnabledL && cfg.squareMode) {
+                    if (originalImgWidth <= originalImgHeight) {
+                        img.style.width = '100%';
+                        img.style.height = 'auto';
+                        img.style.top = ((originalGl3tWidth - originalImgHeight) * zoomFactorO) / 2 + 'px';
+                        img.style.left = '';
                     } else {
-                        left = ((originalWidth * zoomFactorL) - (newImgWidth * newImgWidth / newImgHeight)) / 2 + 'px';
-                        width = newImgWidth * newImgWidth / newImgHeight;
-                        height = newImgWidth;
+                        img.style.width = 'auto';
+                        img.style.height = '100%';
+                        img.style.top = '';
+                        img.style.left = ((originalGl3tWidth - (originalGl3tWidth * originalImgWidth / originalImgHeight)) * zoomFactorO) / 2 + 'px';
                     }
+                } else if (cfg.layoutEnabledL || img._largeImg instanceof Image) {
+                    img.style.width = '100%';
+                    img.style.height = 'auto';
+                    img.style.top = ((originalGl3tHeight - originalImgHeight) * zoomFactorO) / 2 + 'px';
+                    img.style.left = '';
                 } else {
-                    top = ((originalHeight * zoomFactorL) - newImgHeight) / 2 + 'px';
+                    img.style.width = originalImgWidth + 'px';
+                    img.style.height = originalImgHeight + 'px';
+                    img.style.top = originalImgTop ? originalImgTop + 'px' : '';
+                    img.style.left = '';
                 }
-
-                img.style.width = width + 'px';
-                img.style.height = height + 'px';
-                img.style.top = top;
-                img.style.left = left;
 
                 bindThumbHoverZoom(data);
             }
+
+            // 解决原网页缩略图可能存在的 1px 误差
+            if (cfg.layoutEnabledL && gl3t && img) {
+                const updateWH = () => {
+                    if (img.naturalWidth > 0 && originalGl3tWidth - img.naturalWidth === 1) {
+                        gl3t.style.width = img.naturalWidth * zoomFactorO + 'px';
+                        // img.style.width = img.naturalWidth * zoomFactorO + 'px';
+                    }
+                    if (img.naturalHeight > 0 && originalGl3tHeight - img.naturalHeight === 1) {
+                        gl3t.style.height = (cfg.layoutEnabledL && cfg.squareMode ? img.naturalWidth : img.naturalHeight) * zoomFactorO + 'px';
+                        // img.style.height = img.naturalHeight * zoomFactorO + 'px';
+                    }
+                };
+                if (img.complete) {
+                    updateWH();
+                } else {
+                    img.addEventListener('load', updateWH, { once: true });
+                }
+            }
+            data.lastStatus = currentStatus;
         });
     }
 
     /** 调整 glink 的标题序号 */
-    function updateGlinkIndex() {
-        console.log('LOLICON 调整 glink 的标题序号');
+    function updateGlinkIndex(items = pageItemsData) {
+        LLog('调整 glink 的标题序号');
 
-        pageItemsData.forEach((data, index) => {
-            const { glink } = data;
+        items.forEach((data, index) => {
+            const { glink, pageIndex } = data;
 
             if (glink) {
-                const glinkSpan = glink.querySelector('span[data-LOLICON-index="true"]');
+                const glinkSpan = glink.querySelector('span[data-lolicon-index="true"]');
 
                 if (cfg.showIndex) {
                     if (!glinkSpan) {
                         const span = $el('span');
-                        span.setAttribute('data-LOLICON-index', 'true');
-                        if (pageInfo.listDisplayMode === 't' || pageInfo.listDisplayMode === 'e') {
-                            span.textContent = `【${index + 1}】 `;
-                        } else {
-                            span.textContent = `【${index}】 `;
-                        }
+                        span.setAttribute('data-lolicon-index', 'true');
+                        span.textContent = `【${pageIndex + 1}】 `;
                         glink.insertBefore(span, glink.firstChild);
                     }
                 } else if (glinkSpan) {
@@ -1520,15 +1927,18 @@
     }
 
     /** 修改画廊缩略图大小 */
-    function modifyThumbnailSizeG() {
-        console.log('LOLICON 修改画廊缩略图大小');
+    function modifyThumbnailSizeG(items = pageItemsData) {
+        LLog('修改画廊缩略图大小');
 
-        const isSprite = pageItemsData[0].itemsPerSprite !== 1 && pageItemsData.length > 1;
+        const currentStatus = `${cfg.layoutEnabledG}_${cfg.zoomFactorG}`;
+        const zoomFactorO = cfg.layoutEnabledG ? cfg.zoomFactorG : 1;
+        const isSprite = items[0].itemsPerSprite !== 1 && items.length > 1;
 
-        pageItemsData.forEach((data, index) => {
+        items.forEach((data, index) => {
+            if (data.lastStatus === currentStatus) return;
             const {
                 el,
-                backgroundPosition,
+                backgroundPositionX,
                 backgroundImage,
                 spriteIndex,
                 itemsPerSprite,
@@ -1539,28 +1949,27 @@
                 url,
             } = data;
 
-            const [x] = backgroundPosition.split(' ').map(parseFloat);
-
             const bgTotalWidth = isSprite
-                ? itemWidth * itemsPerSprite * cfg.zoomFactorG
-                : width * cfg.zoomFactorG;
+                ? itemWidth * itemsPerSprite
+                : width;
 
             // 设置缩略图尺寸
-            el.style.width = width * cfg.zoomFactorG + 'px';
-            el.style.height = height * cfg.zoomFactorG + 'px';
+            el.style.width = width * zoomFactorO + 'px';
+            el.style.height = height * zoomFactorO + 'px';
 
             // 设置page最大宽度（便于居中）
             if (pageEl) {
-                pageEl.style.maxWidth = itemWidth * cfg.zoomFactorG + 'px';
+                pageEl.style.maxWidth = itemWidth * zoomFactorO + 'px';
             }
 
             // 背景图位置、尺寸缩放
             if (!(el._largeImg instanceof Image)) {
-                el.style.backgroundPosition = x * cfg.zoomFactorG + 'px 0px';
-                el.style.backgroundSize = bgTotalWidth + 'px auto';
+                el.style.backgroundPosition = backgroundPositionX * zoomFactorO + 'px 0px';
+                el.style.backgroundSize = !cfg.layoutEnabledG ? '' : bgTotalWidth * zoomFactorO + 'px auto';
             }
 
             bindThumbHoverZoom(data);
+            data.lastStatus = currentStatus;
         });
     }
 
@@ -1571,7 +1980,6 @@
     /** 全局状态与常量定义 */
     const PREVIEW_MARGIN = 12; // 预览框距离窗口边缘的最小间距
     let hoverTimer = null; // 悬浮延迟用的定时器
-    let fetchLocked = false; // 防止同时发起多个 fetch 的锁
     let previewLink = $i('lolicon-preview-link');
     let preview = $i('lolicon-preview');
     let previewImg = null;
@@ -1602,33 +2010,11 @@
         previewLink.appendChild(preview);
 
         // 绑定预览框上的全局事件（只需绑定一次）
-        preview.addEventListener('wheel', handleWheel); // 滚轮缩放
-        preview.addEventListener('mousedown', handleMouseDown); // 拖拽
+        preview.addEventListener('wheel', handleWheel, { passive: false }); // 滚轮缩放
+        preview.addEventListener('pointerdown', handlePointerDown); // 拖拽
         preview.addEventListener('click', handleClick); // 防误点
-        preview.addEventListener('mouseleave', hidePreview); // 鼠标离开关闭
+        preview.addEventListener('pointerleave', hidePreview); // 鼠标离开关闭
         document.addEventListener('keydown', (e) => { if (e.key === 'Escape') hidePreview(); }); // ESC 关闭
-    }
-
-    /** 异步获取原图 URL（带锁） */
-    async function fetchLargeImage(pageUrl) {
-        if (fetchLocked) return null;
-        fetchLocked = true;
-        setTimeout(() => { fetchLocked = false; }, config['hoverDelay'].def * 1000);
-
-        try {
-            let targetUrl = pageUrl;
-            if (pageInfo.listDisplayMode === 't') {
-                const res = await fetch(pageUrl);
-                const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
-                targetUrl = doc.querySelector('#gdt > a:nth-child(1)')?.href;
-                if (!targetUrl) return null;
-            }
-            const res = await fetch(targetUrl);
-            const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
-            return doc.querySelector('#img')?.src;
-        } catch {
-            return null;
-        }
     }
 
     /** 平衡预览框位置，确保不超出窗口边界 */
@@ -1646,11 +2032,21 @@
         if (!previewState.active) return;
 
         const { bw, bh, scale, el, isDragging } = previewState;
-        const pw = bw * scale;
-        const ph = bh * scale;
+        let pw, ph, left, top;
+
+        if (pageInfo.listDisplayMode === 't' && cfg.layoutEnabledL && cfg.squareMode && bw > bh) {
+            ph = bw * scale;
+            pw = (el._largeImg instanceof Image)
+                ? ph * el._largeImg.naturalWidth / el._largeImg.naturalHeight
+                : ph * bw / bh;
+        } else {
+            pw = bw * scale;
+            ph = (el._largeImg instanceof Image)
+                ? pw * el._largeImg.naturalHeight / el._largeImg.naturalWidth
+                : bh * scale;
+        }
 
         // 计算预览框位置
-        let left, top;
         if (isDragging && wheelEvent) {
             // 拖动后缩放：以鼠标为中心
             const rect = preview.getBoundingClientRect();
@@ -1661,9 +2057,8 @@
         } else {
             // 默认：以缩略图为中心
             const rect = el.getBoundingClientRect();
-            const pixelCorrection = (pageInfo.listDisplayMode === 't') ? (1 / devicePixelRatio) : 0;
-            left = balancePosition(rect.left - pixelCorrection, bw, pw, window.innerWidth);
-            top = balancePosition(rect.top - pixelCorrection, bh, ph, window.innerHeight);
+            left = balancePosition(rect.left, rect.width, pw, window.innerWidth);
+            top = balancePosition(rect.top, rect.height, ph, window.innerHeight);
         }
 
         // 应用预览框尺寸和位置并显示
@@ -1672,6 +2067,7 @@
         preview.style.left = left + 'px';
         preview.style.top = top + 'px';
         preview.style.display = 'block';
+        enablePanelTop(preview);
 
         // 图片显示逻辑
         if (el._largeImg instanceof Image) {
@@ -1682,7 +2078,7 @@
             // 先显示缩略图背景
             previewImg.style.display = 'none';
             previewImg.src = '';
-            applyThumbnailStyle(scale);
+            applyThumbnailStyle(scale, pw);
 
             // 再异步加载大图
             if (cfg.hoverLoadLargeImage && loadLarge) {
@@ -1691,15 +2087,15 @@
         }
     }
 
-    /** 设置预览框缩略图背景样式，支持列表页和图库页 */
-    function applyThumbnailStyle(scale) {
+    /** 设置预览框缩略图背景样式，支持列表页和画廊页 */
+    function applyThumbnailStyle(scale, pw) {
         const {
             bw,
             data: {
                 zoomFactorO,
                 img,
                 backgroundImage,
-                backgroundPosition,
+                backgroundPositionX,
                 itemsPerSprite,
                 itemWidth,
             },
@@ -1708,7 +2104,7 @@
         if (pageInfo.listDisplayMode === 't') {
             // 列表页：直接用缩略图作为背景
             preview.style.backgroundImage = `url("${img.src}")`;
-            preview.style.backgroundSize = bw * scale + 'px auto';
+            preview.style.backgroundSize = pw + 'px auto';
         } else if (pageInfo.isGalleryPage) {
             // 图库页：需要还原 zoomFactorO 的缩放影响
             const bgTotalWidth = (pageItemsData[0].itemsPerSprite !== 1 && pageItemsData.length > 1)
@@ -1717,23 +2113,45 @@
 
             preview.style.backgroundImage = backgroundImage;
             preview.style.backgroundSize = bgTotalWidth * scale + 'px auto';
+            preview.style.backgroundPosition = backgroundPositionX * zoomFactorO * scale + 'px 0px';
+        }
+    }
 
-            const [x] = backgroundPosition.split(' ').map(parseFloat);
-            preview.style.backgroundPosition = x * zoomFactorO * scale + 'px 0px';
+    /** 异步获取原图 URL */
+    async function fetchLargeImage(pageUrl) {
+        try {
+            let targetUrl = pageUrl;
+            if (pageInfo.listDisplayMode === 't') {
+                const res = await fetch(pageUrl);
+                const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+                targetUrl = doc.querySelector('#gdt > a:nth-child(1)')?.href;
+                if (!targetUrl) return null;
+            }
+            const res = await fetch(targetUrl);
+            const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+            return doc.querySelector('#img')?.src;
+        } catch {
+            return null;
         }
     }
 
     /** 异步加载大图并替换预览框和缩略图 */
     function handleLargeImageLoading() {
         const { data: { url }, el } = previewState;
+        if (el._largeImg || el._isFetching) return;
+        el._isFetching = true;
 
         fetchLargeImage(url).then((src) => {
-            if (!src) return;
+            if (!src) {
+                el._isFetching = false;
+                return;
+            }
 
             const preImg = new Image();
             preImg.src = src;
             preImg.onload = () => {
                 el._largeImg = preImg; // 缓存到元素上
+                el._isFetching = false;
 
                 // 预览框还在显示时更新大图
                 if (previewState.active && previewState.el === el) {
@@ -1753,11 +2171,19 @@
                 // 替换页面上的缩略图
                 if (pageInfo.listDisplayMode === 't') {
                     el.src = preImg.src;
+                    if (!cfg.layoutEnabledL) {
+                        el.style.width = '100%';
+                        el.style.height = 'auto';
+                    }
                 } else if (pageInfo.isGalleryPage) {
                     el.style.backgroundImage = `url("${preImg.src}")`;
-                    el.style.backgroundSize = 'cover';
+                    el.style.backgroundSize = '100% auto';
                     el.style.backgroundPosition = 'center';
                 }
+            };
+            preImg.onerror = () => {
+                el._largeImg = null;
+                el._isFetching = false;
             };
         });
     }
@@ -1769,42 +2195,45 @@
 
         clearTimeout(hoverTimer); // 清除上一次定时器
         previewLink.href = data.url; // 设置预览链接
-
-        // 计算基础参数
-        let zoomFactorO, widthO, heightO;
-        const { originalWidth, width, height, img } = data;
-
-        if (pageInfo.listDisplayMode === 't') {
-            if (cfg.squareMode && originalWidth < 250) {
-                zoomFactorO = cfg.zoomFactorS * 250 / originalWidth;
-            } else {
-                zoomFactorO = cfg.zoomFactorS;
-            }
-            // 缓存自然宽高
-            if (!thumbEl._thumbBaseWidth || !thumbEl._thumbBaseHeight) {
-                if (img.naturalWidth > 0 && img.naturalHeight > 0) {
-                    thumbEl._thumbBaseWidth = img.naturalWidth;
-                    thumbEl._thumbBaseHeight = img.naturalHeight;
-                }
-            }
-            widthO = thumbEl._thumbBaseWidth;
-            heightO = thumbEl._thumbBaseHeight;
-        } else if (pageInfo.isGalleryPage) {
-            zoomFactorO = cfg.zoomFactorG;
-            widthO = width;
-            heightO = height;
-        }
-
-        // 更新全局预览状态
         previewState.active = true;
         previewState.el = thumbEl;
-        previewState.data = { ...data, zoomFactorO }; // 注入计算出的 zoomFactorO
-        previewState.scale = cfg.hoverScale;
-        previewState.bw = widthO * zoomFactorO;
-        previewState.bh = heightO * zoomFactorO;
         previewState.isDragging = false;
 
-        hoverTimer = setTimeout(() => renderPreview(true), cfg.hoverDelay * 1000); // 延迟渲染预览
+        hoverTimer = setTimeout(() => {
+            // 计算基础参数
+            const { originalGl3tWidth, width, height, img } = data;
+            let zoomFactorO = 1;
+            let widthO = width;
+            let heightO = height;
+            if (pageInfo.listDisplayMode === 't') {
+                if (cfg.layoutEnabledL) {
+                    if (cfg.squareMode && originalGl3tWidth < 250) {
+                        zoomFactorO = cfg.zoomFactorT * 250 / originalGl3tWidth;
+                    } else {
+                        zoomFactorO = cfg.zoomFactorT;
+                    }
+                }
+                // 缓存自然宽高
+                if (!thumbEl._thumbBaseWidth || !thumbEl._thumbBaseHeight) {
+                    if (img.naturalWidth > 0 && img.naturalHeight > 0) {
+                        thumbEl._thumbBaseWidth = img.naturalWidth;
+                        thumbEl._thumbBaseHeight = img.naturalHeight;
+                    }
+                }
+                widthO = thumbEl._thumbBaseWidth;
+                heightO = thumbEl._thumbBaseHeight;
+            } else if (cfg.layoutEnabledG && pageInfo.isGalleryPage) {
+                zoomFactorO = cfg.zoomFactorG;
+            }
+
+            // 更新全局预览状态
+            previewState.data = { ...data, zoomFactorO }; // 注入计算出的 zoomFactorO
+            previewState.scale = cfg.hoverScale;
+            previewState.bw = widthO * zoomFactorO;
+            previewState.bh = heightO * zoomFactorO;
+
+            renderPreview(true)
+        }, cfg.hoverDelay * 1000); // 延迟渲染预览
     }
 
     /** 隐藏放大预览并重置状态 */
@@ -1852,36 +2281,43 @@
     }
 
     /** 处理预览框鼠标按下，用于拖拽 */
-    function handleMouseDown(e) {
-        if (e.button !== 0) return; // 只响应左键
+    function handlePointerDown(e) {
+        if (e.pointerType === 'mouse' && e.button !== 0) return; // 鼠标只响应左键，触控默认通过
         e.preventDefault();
+        preview.setPointerCapture(e.pointerId);
 
         const startX = e.clientX;
         const startY = e.clientY;
-        const rect = preview.getBoundingClientRect();
-        const startLeft = rect.left;
-        const startTop = rect.top;
+        const startLeft = parseFloat(preview.style.left);
+        const startTop = parseFloat(preview.style.top);
 
         previewState.isDragging = false; // 拖拽标记重置
 
-        function onMouseMove(ev) {
+        function onPointerMove(ev) {
             const deltaX = ev.clientX - startX;
             const deltaY = ev.clientY - startY;
-            if (!previewState.isDragging && (Math.abs(deltaX) > 2 || Math.abs(deltaY) > 2)) {
-                previewState.isDragging = true; // 超过阈值视为拖拽
+
+            // 如果尚未激活拖拽，检查位移是否超过阈值
+            if (!previewState.isDragging) {
+                if (Math.hypot(deltaX, deltaY) < 6) return;
+
+                previewState.isDragging = true;
             }
 
             preview.style.left = startLeft + deltaX + 'px';
             preview.style.top = startTop + deltaY + 'px';
         }
 
-        function onMouseUp() {
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
+        function onPointerUp(ev) {
+            preview.releasePointerCapture(ev.pointerId);
+            preview.removeEventListener('pointermove', onPointerMove);
+            preview.removeEventListener('pointerup', onPointerUp);
+            preview.removeEventListener('pointercancel', onPointerUp);
         }
 
-        document.addEventListener('mousemove', onMouseMove); // 绑定拖拽
-        document.addEventListener('mouseup', onMouseUp); // 释放拖拽
+        preview.addEventListener('pointermove', onPointerMove); // 绑定拖拽
+        preview.addEventListener('pointerup', onPointerUp); // 释放拖拽
+        preview.addEventListener('pointercancel', onPointerUp);
     }
 
     /** 绑定缩略图悬浮放大功能到单个缩略图 */
@@ -1896,21 +2332,28 @@
         }
 
         // 无元素或已绑定则跳过
-        if (!thumbEl || thumbEl.getAttribute('data-LOLICON-bound')) return;
-        thumbEl.setAttribute('data-LOLICON-bound', 'true');
+        if (!thumbEl || thumbEl.getAttribute('data-lolicon-bound')) return;
+        thumbEl.setAttribute('data-lolicon-bound', 'true');
 
         // 悬浮显示大图
-        thumbEl.addEventListener('mouseenter', () => {
+        thumbEl.addEventListener('pointerenter', () => {
             if (!cfg.thumbHoverZoom) return;
             startHover(thumbEl, data);
         });
 
         // 鼠标离开缩略图
-        thumbEl.addEventListener('mouseleave', (e) => {
+        thumbEl.addEventListener('pointerleave', (e) => {
             clearTimeout(hoverTimer);
             // 如果去向不是预览框，且当前处于激活状态，则隐藏
             if (!preview?.contains(e.relatedTarget) && previewState.active) {
                 hidePreview();
+            }
+        });
+
+        // 移动取消 (仅针对触控，防止滑动网页时误弹)
+        thumbEl.addEventListener('pointermove', (e) => {
+            if (e.pointerType === 'touch' && !previewState.active) {
+                clearTimeout(hoverTimer);
             }
         });
     }
@@ -2218,7 +2661,7 @@
 
         // 全部都在，检查符号是否统一
         const firstState = states[0];
-        const isAllSame = states.every(s => s === firstState);
+        const isAllSame = states.every((s) => s === firstState);
         return isAllSame ? firstState : 4; // 符号不统一返回 4
     }
 
@@ -2249,13 +2692,13 @@
 
         // 获取按钮代表的标签集合（可能有多个词），并进行标准化处理
         const btnTokens = tokenize(tag);
-        const btnNorms = btnTokens.map(t => normalizeToken(t).replace(TAG_RE.PRE, ''));
+        const btnNorms = btnTokens.map((t) => normalizeToken(t).replace(TAG_RE.PRE, ''));
         // 获取输入框现有的所有标签，并进行标准化处理
         let inputTokens = tokenize(searchBox.input.value);
-        const inputNorms = inputTokens.map(t => normalizeToken(t).replace(TAG_RE.PRE, ''));
+        const inputNorms = inputTokens.map((t) => normalizeToken(t).replace(TAG_RE.PRE, ''));
 
         // 只有当按钮的【所有词】都在输入框内时，才执行删除；否则补全缺失的词
-        const allExists = btnNorms.every(bn => inputNorms.includes(bn));
+        const allExists = btnNorms.every((bn) => inputNorms.includes(bn));
 
         if (allExists) {
             inputTokens = inputTokens.filter((inTok) => {
@@ -2334,6 +2777,11 @@
         const ta = $el('textarea');
         ta.id = 'lolicon-tag-manage-textarea';
 
+        // 隔离 modal 内输入，防止触发全局快捷键
+        ta.addEventListener("keydown", (e) => {
+            e.stopPropagation();
+        }, true);
+
         // 计算最长的按钮名视觉宽度，用于对齐
         const maxW = Math.max(...searchBox.tags.map((t) => visualWidth(t.name || '')), 0);
         // 将 tags 对象格式化为易于编辑的文本
@@ -2370,6 +2818,7 @@
 
         panel.append(header, ta, bar);
         document.body.append(panel);
+        enablePanelTop(panel);
         enablePanelDrag(panel);
 
         // 如果传入 targetIndex，则定位到对应行并选中
@@ -2741,7 +3190,7 @@
     async function updateFavcat() {
         favcat = await getFavcatList();
         localStorage.favcat = JSON.stringify(favcat);
-        console.log('LOLICON 更新收藏夹目录', favcat);
+        LLog('更新收藏夹目录', favcat);
     }
 
     /** 异步函数：初始化收藏夹列表 */
@@ -2858,6 +3307,7 @@
 
         // 插入页面并定位
         document.body.appendChild(menu);
+        enablePanelTop(menu);
         const rect = anchorEl.getBoundingClientRect();
         const menuHeight = menu.offsetHeight;
         let left = window.scrollX + rect.left;
@@ -2875,13 +3325,13 @@
             if (menu.parentNode) {
                 menu.remove();
             }
-            document.removeEventListener('mousedown', handler);
+            document.removeEventListener('pointerdown', handler);
             document.removeEventListener('contextmenu', handler);
             window.removeEventListener('resize', handler);
         };
 
         const handler = (e) => {
-            if (e.type === 'mousedown') {
+            if (e.type === 'pointerdown') {
                 if (!menu.contains(e.target) && e.target !== anchorEl) {
                     closeMenu();
                 }
@@ -2891,7 +3341,7 @@
         };
 
         // 绑定事件
-        document.addEventListener('mousedown', handler);
+        document.addEventListener('pointerdown', handler);
         document.addEventListener('contextmenu', handler);
         window.addEventListener('resize', handler);
     }
@@ -2899,54 +3349,50 @@
     /** 用 Map 存储元素对应的原始状态，支持遍历批量操作 */
     const originalStates = new Map();
 
+    /** 点击处理 */
+    const clickHandler = (e) => {
+        const el = e.currentTarget;
+        const favUrl = el.dataset.favUrl;
+
+        e.stopPropagation();
+        // 确保数据存在
+        if (!favcat || favcat.length === 0) {
+            initFavcat().then(() => showFavMenu(el, favUrl));
+        } else {
+            showFavMenu(el, favUrl);
+        }
+    };
+
     /** 替换元素原onclick事件，绑定自定义点击事件显示收藏菜单 */
-    const replaceOnClick = (el, favUrl) => {
+    const replaceOnClick = (el, favUrl, extra = {}) => {
         const originalOnClick = el.getAttribute('onclick');
 
-        const clickHandler = (e) => {
-            e.stopPropagation();
-            // 确保数据存在
-            if (!favcat || favcat.length === 0) {
-                initFavcat().then(() => showFavMenu(el, favUrl));
-            } else {
-                showFavMenu(el, favUrl);
-            }
-        };
-
+        el.dataset.favUrl = favUrl;
         el.removeAttribute('onclick');
         el.addEventListener('click', clickHandler);
 
-        // 仅保存必要状态
-        const oldState = originalStates.get(el) || {};
-        originalStates.set(el, { ...oldState, originalOnClick, clickHandler });
+        // 保存必要状态
+        originalStates.set(el, { originalOnClick, ...extra });
     };
 
     /** 恢复元素原onclick事件、鼠标样式、取消自定义点击事件 */
     function restoreElements() {
-        // 先把所有保存的元素缓存到数组，避免边遍历边修改 Map 导致的问题
-        const elements = Array.from(originalStates.keys());
+        for (const [el, { originalOnClick, iconMarginLeft }] of originalStates) {
 
-        for (const el of elements) {
-            const state = originalStates.get(el);
-            if (!state) continue;
-
-            const {
-                originalOnClick,
-                originalCursor,
-                clickHandler,
-                onMouseEnter,
-                onMouseLeave,
-                iconMarginLeft,
-            } = state;
-
-            el.style.cursor = originalCursor || '';
-
-            // 移除鼠标悬停事件监听
-            el.removeEventListener('mouseenter', onMouseEnter);
-            el.removeEventListener('mouseleave', onMouseLeave);
+            // 移除点击事件监听
             el.removeEventListener('click', clickHandler);
 
+            // 恢复 onclick 属性
+            if (originalOnClick) {
+                el.setAttribute('onclick', originalOnClick);
+            }
+
+            // 恢复样式类
             el.classList.remove('lolicon-fav-hover-list', 'lolicon-fav-hover-gallery', 'lolicon-fav-gdf-btn', 'lolicon-fav-gdf-btn-center');
+
+            // 清理标记位与数据
+            el.removeAttribute('data-lolicon-bound');
+            delete el.dataset.favUrl;
 
             if (pageInfo.listDisplayMode) {
 
@@ -2958,38 +3404,23 @@
                     iconDiv.style.marginLeft = iconMarginLeft;
                 }
             }
-
-            // 恢复 onclick 属性
-            if (originalOnClick) {
-                el.setAttribute('onclick', originalOnClick);
-            }
-
-            // 从缓存中移除，防止内存泄漏
-            originalStates.delete(el);
-            el.removeAttribute('data-LOLICON-bound');
         }
+        // 从缓存中移除，防止内存泄漏
+        originalStates.clear();
     }
 
     /** 给列表页中的元素替换点击事件，启用收藏菜单 */
-    async function replaceFavClickS() {
+    async function replaceFavClickL(items = pageItemsData) {
         if (!pageInfo.listDisplayMode) return;
 
         await initFavcat(); // 等待 favcat 数据就绪
 
-        // 不同显示模式对应的选择器，选出需要绑定收藏功能的元素
-        const strategies = {
-            m: '.glthumb + div',
-            p: '.glthumb + div',
-            l: '.glthumb + div > :first-child',
-            e: '.gl3e>:nth-child(2)',
-            t: '.gl5t>:first-child>:nth-child(2)',
-        };
-
         // 遍历所有匹配元素
-        $$(strategies[pageInfo.listDisplayMode]).forEach((el) => {
-            if (!el.onclick) return; // 无onclick则跳过
-            if (el.getAttribute('data-LOLICON-bound')) return;
-            el.setAttribute('data-LOLICON-bound', 'true');
+        items.forEach((data) => {
+            const el = data.el.querySelector('div[id^="posted_"]');
+            if (!el || !el.onclick) return; // 无onclick则跳过
+            if (el.getAttribute('data-lolicon-bound')) return;
+            el.setAttribute('data-lolicon-bound', 'true');
             el.classList.add('lolicon-fav-hover-list');
 
             const favUrl = el.onclick.toString().match(/https.*addfav/)[0]; // 从onclick字符串提取收藏URL
@@ -3007,28 +3438,24 @@
         // 获取画廊按钮容器元素
         const gdf = $i('gdf');
 
-        if (gdf.getAttribute('data-LOLICON-bound')) return;
-        gdf.setAttribute('data-LOLICON-bound', 'true');
+        if (gdf.getAttribute('data-lolicon-bound')) return;
+        gdf.setAttribute('data-lolicon-bound', 'true');
 
         // 调整按钮容器样式，使内容居中且无左边距，设定固定高度和半透明背景
         gdf.classList.add('lolicon-fav-gdf-btn', 'lolicon-fav-hover-gallery');
 
+        let extra = {};
         // 设置 gdf 内部 div#fav div.i 的 margin-left 为 0
         const iconDiv = gdf.querySelector('div#fav div.i');
         if (iconDiv) {
-            // 保存状态以备恢复
-            const oldState = originalStates.get(gdf) || {};
-            originalStates.set(gdf, {
-                ...oldState,
-                iconMarginLeft: iconDiv.style.marginLeft,
-            });
+            extra.iconMarginLeft = iconDiv.style.marginLeft;
             iconDiv.style.marginLeft = '0';
         }
 
         // 拼接收藏请求地址
         const favUrl = `${window.location.origin}/gallerypopups.php?gid=${matchGallery[1]}&t=${matchGallery[2]}&act=addfav`;
 
-        replaceOnClick(gdf, favUrl); // 替换点击事件绑定收藏弹窗
+        replaceOnClick(gdf, favUrl, extra); // 替换点击事件绑定收藏弹窗
     }
 
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
@@ -3069,7 +3496,7 @@
         nextPage.isLoading = true;
         updateLoadingStatus('loading'); // 显示加载中
         try {
-            console.log('LOLICON 加载下一页：', nextPage.nextPageLink);
+            LLog('加载下一页：', nextPage.nextPageLink);
             const response = await fetch(nextPage.nextPageLink);
             const html = await response.text();
             const parser = new DOMParser();
@@ -3091,35 +3518,34 @@
                     }
                 });
 
+                const newData = pageInfo.listDisplayMode ? collectDataL(fragment) : collectDataG(fragment);
+
                 $i('lolicon-loading-indicator').before(fragment);
 
                 nextPage.loadedCount++;
-                console.log('LOLICON 下一页内容已成功加载。');
+                LLog('下一页内容已成功加载。');
                 if (pageInfo.listDisplayMode) {
-                    collectDataS();
-                    if (pageInfo.listDisplayMode === 't') modifyThumbnailSizeS();
-                    updateGlinkIndex();
-                    if (cfg.quickFavorite) replaceFavClickS();
+                    if (pageInfo.listDisplayMode === 't') modifyThumbnailSizeL(newData);
+                    updateGlinkIndex(newData);
+                    if (cfg.quickFavorite) replaceFavClickL(newData);
                     if (cfg.liveURLUpdate && !pageInfo.isPopularPage && !pageInfo.isFavoritesPage) {
                         throttledGetRowInfo();
                     }
                 } else if (pageInfo.isGalleryPage) {
-                    collectDataG();
-                    modifyThumbnailSizeG();
-                    throttledAdjustColumnsG();
+                    modifyThumbnailSizeG(newData);
                 }
 
             } else {
-                console.log('LOLICON 未找到下一页的内容，停止加载。');
+                LLog('未找到下一页的内容，停止加载。');
             }
 
             getNextPageLink(fetchedDoc);
 
             if (nextPage.nextPageLink) {
-                console.log('LOLICON 下一页链接已更新为：', nextPage.nextPageLink);
+                LLog('下一页链接已更新为：', nextPage.nextPageLink);
                 updateLoadingStatus('idle');
             } else {
-                console.log('LOLICON 已是最后一页');
+                LLog('已是最后一页');
                 updateLoadingStatus('end');
             }
 
@@ -3170,9 +3596,9 @@
         const config = {
             idle: `<span class="lolicon-loading-status-text">· · ·</span>`,
             loading: `<div class="lolicon-loading-spinner"></div><span class="lolicon-loading-status-text">${translate('loading')}</span>`,
-            maxLimit: `<span class="lolicon-loading-status-text" style="cursor:pointer;text-decoration:underline">${translate('maxPageReached')}</span>`,
+            maxLimit: `<span class="lolicon-loading-status-text modern-link">${translate('maxPageReached')}</span>`,
             end: `<span class="lolicon-loading-status-text">${translate('noMoreContent')}</span>`,
-            error: `<span class="lolicon-loading-status-text" style="cursor:pointer;text-decoration:underline">${translate('loadFailedRetry')}</span>`,
+            error: `<span class="lolicon-loading-status-text modern-link">${translate('loadFailedRetry')}</span>`,
         };
 
         // 更新 UI
@@ -3197,12 +3623,16 @@
 
     /** 获取行信息 */
     function getRowInfo() {
+        const layoutRowInfoKey = `${cfg.layoutEnabledL}_${cfg.zoomFactorT}_${cfg.squareMode}_${layout.columnsT}_${pageItemsData.length}`;
+        if (layout.layoutRowInfoKey === layoutRowInfoKey) return
+        layout.layoutRowInfoKey = layoutRowInfoKey;
+
+        LLog('获取行信息');
         elementPositions = [];
         const scrollY = window.scrollY;
-        const startIndex = (pageInfo.listDisplayMode === 't' || pageInfo.listDisplayMode === 'e') ? 0 : 1;
-        const step = (pageInfo.listDisplayMode === 't') ? layout.columnsS : 1;
+        const step = (pageInfo.listDisplayMode === 't') ? layout.columnsT : 1;
 
-        for (let i = startIndex; i < pageItemsData.length; i += step) {
+        for (let i = 0; i < pageItemsData.length; i += step) {
             const el = pageItemsData[i].el;
             elementPositions.push({
                 bottom: el.getBoundingClientRect().bottom + scrollY,
@@ -3370,51 +3800,131 @@
 
     /** 启用面板拖动 */
     function enablePanelDrag(panel) {
-        const fixPosition = () => {
-            if (!panel.style.left) return;
-            let x = parseInt(panel.style.left);
-            let y = parseInt(panel.style.top);
-
-            const maxLeft = Math.max(0, window.innerWidth - panel.offsetWidth);
-            if (x > maxLeft) panel.style.left = maxLeft + 'px';
-
-            const maxTop = Math.max(0, window.innerHeight - panel.offsetHeight);
-            if (y > maxTop) panel.style.top = maxTop + 'px';
-        };
-        window.addEventListener('resize', fixPosition);
-
-        panel.onmousedown = (e) => {
+        panel.addEventListener('pointerdown', (e) => {
             if (e.button !== 0 || e.target.closest('textarea, input, button, select, a, label')) return;
 
-            const rect = panel.getBoundingClientRect();
-            panel.style.transform = 'none';
-            panel.style.left = rect.left + 'px';
-            panel.style.top = rect.top + 'px';
-            panel.style.right = 'auto';
+            panel.setPointerCapture(e.pointerId);
 
-            const onMouseMove = (ev) => {
-                let x = rect.left + (ev.clientX - e.clientX);
-                let y = rect.top + (ev.clientY - e.clientY);
-                x = Math.max(0, Math.min(x, window.innerWidth - panel.offsetWidth));
-                y = Math.max(0, Math.min(y, window.innerHeight - panel.offsetHeight));
-                panel.style.left = x + 'px';
-                panel.style.top = y + 'px';
+            const startX = e.clientX;
+            const startY = e.clientY;
+            let isDragging = false;
+            let rect, viewportW, viewportH, maxW, maxH;
+
+            const onPointerMove = (ev) => {
+                const deltaX = ev.clientX - startX;
+                const deltaY = ev.clientY - startY;
+
+                // 如果尚未激活拖拽，检查位移是否超过阈值
+                if (!isDragging) {
+                    if (Math.hypot(deltaX, deltaY) < 6) return;
+
+                    isDragging = true;
+
+                    viewportW = document.documentElement.clientWidth;
+                    viewportH = document.documentElement.clientHeight;
+                    rect = panel.getBoundingClientRect();
+
+                    // 冻结当前位置，切换为像素控制
+                    panel.style.transition = 'none';
+                    panel.style.left = rect.left + 'px';
+                    panel.style.top = rect.top + 'px';
+                    panel.style.right = 'auto';
+                    panel.style.bottom = 'auto';
+                    panel.style.transform = 'translate3d(0px, 0px, 0px)';
+
+                    // 强制重绘
+                    void panel.offsetWidth;
+
+                    maxW = viewportW - rect.width;
+                    maxH = viewportH - rect.height;
+                }
+
+                let newLeft = rect.left + deltaX;
+                let newTop = rect.top + deltaY;
+                newLeft = Math.max(0, Math.min(newLeft, maxW));
+                newTop = Math.max(0, Math.min(newTop, maxH));
+
+                const clampDeltaX = newLeft - rect.left;
+                const clampDeltaY = newTop - rect.top;
+                panel.style.transform = `translate3d(${clampDeltaX}px, ${clampDeltaY}px, 0)`;
             };
 
-            const onMouseUp = () => {
-                document.removeEventListener('mousemove', onMouseMove);
-                document.removeEventListener('mouseup', onMouseUp);
+            const onPointerUp = (ev) => {
+                panel.releasePointerCapture(ev.pointerId);
+                panel.removeEventListener('pointermove', onPointerMove);
+                panel.removeEventListener('pointerup', onPointerUp);
+                panel.removeEventListener('pointercancel', onPointerUp);
+
+                if (!isDragging) return;
+
+                const finalRect = panel.getBoundingClientRect();
+                panel.style.transform = 'none';
+
+                const maxLeftInside = `calc(100% - ${finalRect.width}px)`;
+                const maxTopInside = `calc(100% - ${finalRect.height}px)`;
+                const midPointLimitX = `calc(50vw - ${finalRect.width / 2}px)`;
+                const midPointLimitY = `calc(50vh - ${finalRect.height / 2}px)`;
+
+                const leftRatio = finalRect.left / viewportW;
+                const rightRatio = finalRect.right / viewportW;
+                const topRatio = finalRect.top / viewportH;
+                const bottomRatio = finalRect.bottom / viewportH;
+
+                // X 轴锚定
+                if (leftRatio < 1 - rightRatio && leftRatio < 0.2) {
+                    panel.style.left = `clamp(0px, ${finalRect.left}px, ${midPointLimitX})`;
+                    panel.style.right = 'auto';
+                } else if (1 - rightRatio <= leftRatio && rightRatio > 0.8) {
+                    panel.style.left = 'auto';
+                    panel.style.right = `clamp(0px, ${viewportW - finalRect.right}px, ${midPointLimitX})`;
+                } else {
+                    const centerXRatio = (finalRect.left + finalRect.width / 2) / viewportW;
+                    const percentX = (centerXRatio * 100).toFixed(3);
+                    const halfWidth = finalRect.width / 2;
+                    panel.style.left = `clamp(0px, calc(${percentX}% - ${halfWidth}px), ${maxLeftInside})`;
+                    panel.style.right = 'auto';
+                }
+
+                // Y 轴锚定
+                if (topRatio < 1 - bottomRatio && topRatio < 0.2) {
+                    panel.style.top = `clamp(0px, ${finalRect.top}px, ${midPointLimitY})`;
+                    panel.style.bottom = 'auto';
+                } else if (1 - bottomRatio <= topRatio && bottomRatio > 0.8) {
+                    panel.style.top = 'auto';
+                    panel.style.bottom = `clamp(0px, ${viewportH - finalRect.bottom}px, ${midPointLimitY})`;
+                } else {
+                    const centerYRatio = (finalRect.top + finalRect.height / 2) / viewportH;
+                    const percentY = (centerYRatio * 100).toFixed(3);
+                    const halfHeight = finalRect.height / 2;
+                    panel.style.top = `clamp(0px, calc(${percentY}% - ${halfHeight}px), ${maxTopInside})`;
+                    panel.style.bottom = 'auto';
+                }
+
+                panel.style.transition = '';
             };
 
-            document.addEventListener('mousemove', onMouseMove);
-            document.addEventListener('mouseup', onMouseUp);
-        };
+            panel.addEventListener('pointermove', onPointerMove);
+            panel.addEventListener('pointerup', onPointerUp);
+            panel.addEventListener('pointercancel', onPointerUp);
+        });
+    }
+
+    /** 最大 z-index 基准 */
+    let maxZIndex = 1000000;
+
+    /** 启用面板置顶 */
+    function enablePanelTop(panel) {
+        panel.style.zIndex = ++maxZIndex;
+        if (!panel._loliconTopBound) {
+            panel._loliconTopBound = true;
+            panel.addEventListener('pointerdown', () => enablePanelTop(panel));
+        }
     }
 
     /** 滚动监控 加载下一页 */
     function setupScrollObserver() {
         const configKey = pageInfo.isGalleryPage ? 'moreThumbnail' : 'infiniteScroll';
-        const maxPagesKey = pageInfo.isGalleryPage ? 'maxPagesG' : 'maxPagesS';
+        const maxPagesKey = pageInfo.isGalleryPage ? 'maxPagesG' : 'maxPagesL';
         if (!nextPage.nextPageLink) {
             updateLoadingStatus('end');
             return;
@@ -3433,9 +3943,8 @@
 
                 const maxPageLimit = cfg[maxPagesKey];
                 if (maxPageLimit !== 0 && nextPage.loadedCount >= maxPageLimit) {
-                    console.log('LOLICON 已达到最大页数限制: ', nextPage.loadedCount, ' >= ', maxPageLimit);
+                    LLog('已达到最大页数限制: ', nextPage.loadedCount, ' >= ', maxPageLimit);
                     updateLoadingStatus('maxLimit');
-                    scrollObserver.unobserve(indicator);
                     return;
                 }
 
@@ -3449,20 +3958,32 @@
         if (indicator) scrollObserver.observe(indicator);
     }
 
+    /** 输出日志 */
+    function LLog(...args) {
+        // console.log('[LOLICON]', ...args);
+    }
+
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
     // 初始化与事件绑定
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
     /** 应用更改 */
     function applyChanges() {
+        LLog('应用更改 开始');
+        if (pageInfo.isFavoritesPage) {
+            $c('ido')[0].style.minWidth = !cfg.layoutEnabledL ? '930px' : '740px';
+        }
         calculateDimensions();
         if (pageInfo.listDisplayMode) {
-            throttledAdjustColumnsS();
-            if (pageInfo.listDisplayMode === 't') modifyThumbnailSizeS();
+            throttledAdjustColumnsL();
+            if (pageInfo.listDisplayMode === 't') modifyThumbnailSizeL();
             updateGlinkIndex();
             quickTagPanel();
             updateLoadingStatus('toggle');
-            cfg.quickFavorite ? replaceFavClickS() : restoreElements();
+            cfg.quickFavorite ? replaceFavClickL() : restoreElements();
+            if (cfg.liveURLUpdate && !pageInfo.isPopularPage && !pageInfo.isFavoritesPage) {
+                throttledGetRowInfo();
+            }
         } else if (pageInfo.isGalleryPage) {
             tagSearchG();
             throttledAdjustColumnsG();
@@ -3471,8 +3992,8 @@
             setupThumbScroller();
             updateLoadingStatus('toggle');
             cfg.quickFavorite ? replaceFavClickG() : restoreElements();
-        } else if ($i('searchbox') || pageInfo.isFavoritesPage) {
-            throttledAdjustColumnsS();
+        } else if (pageInfo.hasSearchBox) {
+            throttledAdjustColumnsL();
             quickTagPanel();
         }
         if ($i('nb')) {
@@ -3482,13 +4003,14 @@
         if (toggleEHInfo.allowed) {
             toggleEHButton();
         }
+        LLog('应用更改 结束');
     }
 
     /** 绑定全局事件 */
     function bindEvents() {
         if (pageInfo.listDisplayMode) {
             setupScrollObserver();
-            window.addEventListener('resize', throttledAdjustColumnsS);
+            window.addEventListener('resize', throttledAdjustColumnsL);
             window.addEventListener('scroll', () => {
                 if (cfg.liveURLUpdate && !pageInfo.isPopularPage && !pageInfo.isFavoritesPage) {
                     throttledUpdateURLOnScroll();
@@ -3497,14 +4019,14 @@
         } else if (pageInfo.isGalleryPage) {
             setupScrollObserver();
             window.addEventListener('resize', throttledAdjustColumnsG);
-        } else if ($i('searchbox') || pageInfo.isFavoritesPage) {
-            window.addEventListener('resize', throttledAdjustColumnsS);
+        } else if (pageInfo.hasSearchBox) {
+            window.addEventListener('resize', throttledAdjustColumnsL);
         }
     }
 
     /** 启动!! */
     function init() {
-        console.log('LOLICON 开始');
+        LLog('启动 开始');
 
         // 设置菜单
         GM_registerMenuCommand(translate('settings'), showSettingsPanel);
@@ -3514,11 +4036,6 @@
         injectCSS();
         getToggleEHInfo();
 
-        // 收藏页面修改
-        if (pageInfo.isFavoritesPage) {
-            $c('ido')[0].style.minWidth = '740px';
-        }
-
         // 更新收藏夹目录
         if (pageInfo.isFavoritesPage || pageInfo.isUconfigPage || pageInfo.isGalleryPopupsPage) {
             updateFavcat();
@@ -3526,7 +4043,7 @@
 
         // 初始数据收集
         if (pageInfo.listDisplayMode) {
-            collectDataS();
+            collectDataL();
             getNextPageLink(document);
         } else if (pageInfo.isGalleryPage) {
             collectDataG();
@@ -3537,6 +4054,7 @@
         applyChanges();
         bindEvents();
 
+        LLog('启动 结束');
     }
 
     init();
