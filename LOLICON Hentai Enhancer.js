@@ -6,7 +6,7 @@
 // @name:ko             LOLICON Hentai 향상기
 // @name:ru             LOLICON Hentai Улучшатель
 // @namespace           https://greasyfork.org/scripts/516145
-// @version             2026.03.12
+// @version             2026.03.24
 // @description         E-Hentai/ExHentai Auto Window Adaptation, Adjustable Thumbnails (size/margin), Quick Favorite, Infinite Scroll, Load More Thumbnails, Quick Tag & Search Enhancer, Thumbnail Hover Zoom
 // @description:zh-CN   E-Hentai/ExHentai 自动适配窗口尺寸、缩略图调整（大小/间距）、快捷收藏、无限滚动、加载更多缩略图、快捷标签 & 搜索增强、缩略图悬浮放大
 // @description:zh-TW   E-Hentai/ExHentai 自動適配視窗尺寸、縮圖調整（大小/間距）、快捷收藏、無限滾動、加載更多縮圖、快捷標籤 & 搜尋增強、縮略圖懸浮放大
@@ -93,11 +93,132 @@
     /** 更新画廊页宽-节流 */
     const throttledAdjustColumnsG = throttle(adjustColumnsG, 60);
     /** 更新地址栏-节流 */
-    const throttledUpdateURLOnScroll = throttle(updateURLOnScroll, 60);
+    const throttledUpdateURLOnScroll = throttle(updateURLOnScroll, 120);
     /** 获取行信息-节流 */
     const throttledGetRowInfo = throttle(getRowInfo, 240);
-    /** 加载下一页-节流 */
-    const throttledLoadNextPage = throttle(loadNextPage, 600); //, { trailing: false }
+    /** 加载页面内容-节流 */
+    const throttledLoadPage = throttle(loadPage, 600); //, { trailing: false }
+
+    /** Fetch 发包限速队列 */
+    const queuedFetch = (() => {
+        const queue = [];
+        let isRunning = false; // 队列循环的锁
+        let lastRequestTime = 0; // 记录上一次发起请求的时间
+
+        const originalFetch = window.fetch.bind(window);
+
+        async function processQueue() {
+            if (isRunning) return;
+            isRunning = true;
+
+            try {
+                while (queue.length > 0) {
+                    const task = queue.shift();
+
+                    if (task.nativeOptions?.signal?.aborted) {
+                        task.reject(new DOMException('Aborted', 'AbortError'));
+                        continue;
+                    }
+
+                    // 计算等待时间
+                    const wait = task.q_interval - (performance.now() - lastRequestTime);
+
+                    if (wait > 0) {
+                        await new Promise((r) => setTimeout(r, wait));
+                        if (task.nativeOptions?.signal?.aborted) {
+                            task.reject(new DOMException('Aborted', 'AbortError'));
+                            continue;
+                        }
+                    }
+
+                    // 更新发起时间
+                    lastRequestTime = performance.now();
+
+                    (async () => {
+                        const internalController = new AbortController();
+                        let isTimeout = false;
+                        let timeoutId = null;
+
+                        // 只有当 q_timeout 大于 0 时才启用超时控制
+                        if (task.q_timeout > 0) {
+                            timeoutId = setTimeout(() => {
+                                isTimeout = true; // 标记为超时状态
+                                internalController.abort();
+                            }, task.q_timeout);
+                        }
+
+                        const userSignal = task.nativeOptions?.signal;
+                        let finalSignal = internalController.signal;
+                        let abortHandler = null;
+
+                        // 信号合并与兼容性处理
+                        if (userSignal) {
+                            if (typeof AbortSignal.any === 'function') {
+                                finalSignal = AbortSignal.any([userSignal, internalController.signal]);
+                            } else {
+                                abortHandler = () => internalController.abort();
+                                userSignal.addEventListener('abort', abortHandler);
+                            }
+                        }
+
+                        try {
+                            const response = await originalFetch(task.url, {
+                                ...task.nativeOptions,
+                                signal: finalSignal
+                            });
+                            task.resolve(response);
+                        } catch (error) {
+                            const finalError = isTimeout ? new DOMException('Request timed out', 'TimeoutError') : error;
+                            task.reject(finalError);
+                            console.error('LOLICON Fetch 队列任务失败：', finalError.message);
+                        } finally {
+                            clearTimeout(timeoutId);
+                            if (userSignal && abortHandler) {
+                                userSignal.removeEventListener('abort', abortHandler);
+                            }
+                        }
+                    })();
+                }
+            } finally {
+                isRunning = false;
+            }
+        }
+
+        return function (url, options = {}) {
+            return new Promise((resolve, reject) => {
+                if (options?.signal?.aborted) {
+                    return reject(new DOMException('Aborted', 'AbortError'));
+                }
+
+                const {
+                    q_priority: q_priority = 0, // 任务优先级，值越大越先执行，默认 0
+                    q_interval: q_interval = 600, // 任务请求间隔，默认 600ms
+                    q_timeout: q_timeout = 12000, // 超时时间，默认 12000ms
+                    ...nativeOptions
+                } = options;
+
+                const task = {
+                    url,
+                    nativeOptions,
+                    resolve,
+                    reject,
+                    q_priority,
+                    q_interval,
+                    q_timeout,
+                };
+
+                // 优先级插入
+                const index = queue.findIndex((t) => task.q_priority > t.q_priority);
+                if (index === -1) {
+                    queue.push(task);
+                } else {
+                    queue.splice(index, 0, task);
+                }
+
+                processQueue();
+            });
+        };
+    })();
 
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
     // 2. 常量与定义
@@ -123,7 +244,7 @@
         squareMode: { pages: ['T'], def: false }, // 方形缩略图
         pageMarginL: { pages: ['L', 'S'], def: 10, step: 1, min: 0, max: 1000 }, // 列表页页面外边距
         pagePadding: { pages: ['L', 'S'], def: 10, step: 1, min: 0, max: 1000 }, // 列表页页面内边距
-        fullWidthModeL: { pages: ['L', 'S'], def: false }, // 列表页全宽布局   
+        fullWidthModeL: { pages: ['L', 'S'], def: false }, // 列表页全宽布局
 
         // 画廊页布局配置
         layoutEnabledG: { pages: ['G'], def: true }, // 画廊页布局修改模式
@@ -137,7 +258,7 @@
         pageMarginG: { pages: ['G'], def: 10, step: 1, min: 0, max: 1000 }, // 画廊页页面外边距
         fullWidthModeG: { pages: ['G'], def: false }, // 画廊页全宽布局
 
-        // 功能开关 
+        // 功能开关
         showIndex: { pages: ['L'], def: false }, // 显示序号
         liveURLUpdate: { pages: ['L'], def: false }, // 实时更新网址
         tagSearchG: { pages: ['G'], def: true }, // 画廊标签搜索
@@ -157,7 +278,7 @@
         toggleEH: { pages: ['EH'], def: false }, // EH/ExH 切换按钮
     };
 
-    /**  EH 标签命名空间 缩写映射表 */
+    /** EH 标签命名空间 缩写映射表 */
     const tag_nsMap = {
         artist: 'a',
         character: 'c',
@@ -195,7 +316,7 @@
                 right: 24px;
                 background-color: rgba(var(--lolicon-bg-rgb), 0.8);
                 border-radius: 12px;
-                box-shadow: 0 0 12px rgba(0,0,0,0.6);
+                box-shadow: 0 0 12px rgba(0, 0, 0, 0.6);
                 font-size: 14px;
                 color: rgba(var(--lolicon-text-rgb), 1);
                 white-space: nowrap;
@@ -288,10 +409,10 @@
                 --lolicon-indent-level: 0;
                 padding-left: calc(var(--lolicon-indent-level) * 24px);
             }
-            .lolicon-settings-control-row label { 
+            .lolicon-settings-control-row label {
                 font-size: 14px;
-                font-weight: bold; 
-                cursor: pointer; 
+                font-weight: bold;
+                cursor: pointer;
             }
             #lolicon-settings-panel input[type='number'] {
                 width: 60px;
@@ -327,7 +448,7 @@
                 position: fixed;
                 background-repeat: no-repeat;
                 display: none;
-                box-shadow: 0 0 12px rgba(0,0,0,0.6);
+                box-shadow: 0 0 12px rgba(0, 0, 0, 0.6);
                 overflow: hidden;
                 pointer-events: auto;
                 touch-action: none;
@@ -336,6 +457,29 @@
                 width: 100%;
                 height: auto;
                 display: none;
+            }
+            .lolicon-loading-shimmer {
+                position: absolute;
+                inset: 0;
+                overflow: hidden;
+                pointer-events: none;
+            }
+            .lolicon-loading-shimmer::after {
+                content: "";
+                position: absolute;
+                inset: 0;
+                background: linear-gradient(
+                    90deg,
+                    rgba(255, 255, 255, 0) 40%,
+                    rgba(255, 255, 255, 0.24) 50%,
+                    rgba(255, 255, 255, 0) 60%
+                );
+                transform: translateX(-100%) skewX(-24deg);
+                will-change: transform;
+                animation: lolicon-shimmer 1.6s linear infinite;
+            }
+            @keyframes lolicon-shimmer {
+                to { transform: translateX(100%) skewX(-24deg); }
             }
         `,
 
@@ -360,7 +504,7 @@
                 background: inherit;
                 padding: 0 12px;
                 border-radius: 8px;
-                box-shadow: 0 0 12px rgba(0,0,0,0.6);
+                box-shadow: 0 0 12px rgba(0, 0, 0, 0.6);
                 user-select: none;
                 touch-action: none;
                 will-change: transform;
@@ -395,7 +539,7 @@
             .lolicon-fav-popup-menu {
                 position: absolute;
                 background: rgba(0, 0, 0, 0.8);
-                box-shadow: 0 0 6px rgba(0,0,0,0.6);
+                box-shadow: 0 0 6px rgba(0, 0, 0, 0.6);
                 padding: 2px;
                 color: #fff;
                 min-width: 166px;
@@ -443,10 +587,7 @@
         // 无限滚动加载指示器样式
         loading: /* css */ `
             .lolicon-loading-container {
-                grid-column: 1 / -1;
                 box-sizing: border-box;
-                padding: 6px 0;
-                width: 100%;
                 color: inherit;
                 min-height: 36px;
             }
@@ -454,25 +595,27 @@
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                border-radius: 2px;
+                grid-column: 1 / -1;
+                width: 100%;
+                border-radius: 4px;
                 border: 1px solid color-mix(in srgb, currentColor, transparent 80%);
             }
             tr.lolicon-loading-container td {
                 text-align: center;
-                padding: 6px 0;
                 color: inherit;
                 vertical-align: middle;
+                border: 1px solid color-mix(in srgb, currentColor, transparent 80%);
             }
-            div.lolicon-loading-container:has(.modern-link),
-            tr.lolicon-loading-container:has(.modern-link) td {
-                box-shadow: 0 0 2px rgba(0,0,0,0.6);
+            div.lolicon-loading-container:has(.loading-link),
+            tr.lolicon-loading-container:has(.loading-link) td {
                 cursor:pointer;
-            }
-            div.lolicon-loading-container:has(.modern-link):hover {
                 border-color: color-mix(in srgb, currentColor, transparent 60%);
-                background: rgba(var(--lolicon-primary-rgb), 0.06);
             }
-            tr.lolicon-loading-container:has(.modern-link):hover td {
+            div.lolicon-loading-container:has(.loading-link):hover,
+            tr.lolicon-loading-container:has(.loading-link):hover td,
+            div.lolicon-loading-container:has(.lolicon-loading-spinner),
+            tr.lolicon-loading-container:has(.lolicon-loading-spinner) td {
+                border-color: color-mix(in srgb, currentColor, transparent 40%);
                 background: rgba(var(--lolicon-primary-rgb), 0.06);
             }
             .lolicon-loading-spinner {
@@ -485,7 +628,7 @@
                 animation: lolicon-loading-spin 0.6s linear infinite;
                 vertical-align: middle;
             }
-            @keyframes lolicon-loading-spin { to { transform: rotate(360deg); } } 
+            @keyframes lolicon-loading-spin { to { transform: rotate(360deg); } }
             .lolicon-loading-status-text {
                 font-size: 18px;
                 display: inline-block;
@@ -493,8 +636,10 @@
                 user-select: none;
                 margin-left: 10px;
                 vertical-align: middle;
-                opacity: 0.8;
                 line-height: 24px;
+            }
+            .lolicon-loading-status-text.loading-end {
+                opacity: 0.6;
             }
         `,
 
@@ -878,7 +1023,7 @@
             'ko': '로드 중...',
             'ru': 'Загрузка...',
         },
-        'maxPageReached': {
+        'loadMoreContent': {
             'en': '--- Load more ---',
             'zh-CN': '--- 加载更多 ---',
             'zh-TW': '--- 載入更多 ---',
@@ -1278,6 +1423,11 @@
         enablePanelTop(panel);
         enablePanelDrag(panel);
 
+        // 防止触发全局快捷键
+        panel.addEventListener('keydown', (e) => {
+            e.stopPropagation();
+        }, true);
+
         // 面板整体的行为与按钮绑定
         panel.addEventListener('input', (e) => {
             if (e.target.type === 'number') handleInputChange(e);
@@ -1456,7 +1606,7 @@
     function calculateDimensions() {
         layout.columnWidthL = 250 * cfg.zoomFactorT + cfg.margin * 2; // 每列的宽度 250-400 270
         layout.columnWidthLb = layout.columnWidthL + (2 / getDPR()); // 加上缩略图边框，边框宽度受设备像素比影响
-        layout.columnWidthG = 100 * cfg.zoomFactorG + cfg.spacing; // 画廊每列的宽度(100X) spacing:15  + (2 / getDPR())
+        layout.columnWidthG = 100 * cfg.zoomFactorG + cfg.spacing; // 画廊每列的宽度(100X) spacing:15 + (2 / getDPR())
         layout.marginAdjustmentL = 14 + cfg.pageMarginL * 2; // 页面边距调整值 body-padding:2 ido-padding:5
         layout.marginAdjustmentG = 34 + cfg.pageMarginG * 2; // 画廊页面边距调整值 body-padding:2 gdt-padding:15
         layout.paddingAdjustmentL = cfg.pagePadding * 2; // 页面内边距调整值
@@ -1467,7 +1617,7 @@
 
     /** 调整列表页 */
     function adjustColumnsL() {
-        LLog('列表页调整');
+        console.log('LOLICON 列表页调整');
 
         const width = document.documentElement.clientWidth; // window.innerWidth
         const minWidthNumber = parseFloat(getComputedStyle($c('ido')[0]).minWidth);
@@ -1559,7 +1709,7 @@
 
     /** 调整画廊详情页面 */
     function adjustColumnsG() {
-        LLog('画廊页面调整');
+        console.log('LOLICON 画廊页面调整');
 
         const gdt = $i('gdt');
         if (gdt) {
@@ -1614,7 +1764,6 @@
             if ($i('gd2')) { $i('gd2').style.width = !cfg.layoutEnabledG ? '' : clientWidthG_gdt_gd2 + 'px'; }
             if ($i('gmid')) { $i('gmid').style.width = !cfg.layoutEnabledG ? '' : clientWidthG_gdt_gmid + 'px'; }
             if ($i('gd4')) { $i('gd4').style.width = !cfg.layoutEnabledG ? '' : clientWidthG_gdt_gd4 + 'px'; }
-
 
             gdt.style.maxWidth = !cfg.layoutEnabledG ? '' : clientWidthG_gdt + 'px'; // 设置最大宽度 700 940 1180
             gdt.style.gridTemplateColumns = !cfg.layoutEnabledG ? '' : 'repeat(' + columnsG + ', 1fr)';
@@ -1672,13 +1821,13 @@
     }
 
     /** 收集列表页信息 */
-    function collectDataL(root = document) {
-        LLog('收集列表页信息');
+    function collectDataL(root = document, direction = 'next') {
+        console.log('LOLICON 收集列表页信息');
         const isThumbnailMode = pageInfo.listDisplayMode === 't';
         const gElements = isThumbnailMode
             ? root.querySelectorAll('.gl1t')
             : (root === document)
-                ? root.querySelectorAll('.itg > tbody > tr:not(#lolicon-loading-indicator)')
+                ? root.querySelectorAll('.itg > tbody > tr:not(.lolicon-loading-container)')
                 : Array.from(root.children);
 
         const newData = [];
@@ -1700,7 +1849,7 @@
                 glink,
                 gid,
                 url,
-                pageIndex: pageItemsData.length,
+                pageIndex: 0,
                 lastStatus: null,
             };
 
@@ -1730,16 +1879,27 @@
             }
 
             el._loliconData = itemData;
-            pageItemsData.push(itemData);
             newData.push(itemData);
         });
+
+        if (direction === 'next') {
+            newData.forEach((item) => {
+                item.pageIndex = pageItemsData.length;
+                pageItemsData.push(item);
+            });
+        } else {
+            pageItemsData.unshift(...newData);
+            pageItemsData.forEach((item, idx) => {
+                item.pageIndex = idx;
+            });
+        }
 
         return newData;
     }
 
     /** 收集画廊页面信息 */
-    function collectDataG(root = document) {
-        LLog('收集画廊页面信息');
+    function collectDataG(root = document, direction = 'next') {
+        console.log('LOLICON 收集画廊页面信息');
         const gdt = (root === document) ? $i('gdt') : root;
         const gdtThumbsSingle = gdt.querySelectorAll('a > div:nth-child(1)');
         const gdtThumbsDouble = gdt.querySelectorAll('a > div:nth-child(1) > div:nth-child(1)');
@@ -1777,12 +1937,11 @@
                 itemWidth,
                 pageEl,
                 url,
-                pageIndex: pageItemsData.length,
+                pageIndex: 0,
                 lastStatus: null,
             };
 
             el._loliconData = itemData;
-            pageItemsData.push(itemData);
             newData.push(itemData);
         });
 
@@ -1792,12 +1951,24 @@
             }
         });
 
+        if (direction === 'next') {
+            newData.forEach((item) => {
+                item.pageIndex = pageItemsData.length;
+                pageItemsData.push(item);
+            });
+        } else {
+            pageItemsData.unshift(...newData);
+            pageItemsData.forEach((item, idx) => {
+                item.pageIndex = idx;
+            });
+        }
+
         return newData;
     }
 
     /** 修改列表页缩略图大小 */
     function modifyThumbnailSizeL(items = pageItemsData) {
-        LLog('修改缩略图大小');
+        console.log('LOLICON 修改缩略图大小');
 
         const currentStatus = `${cfg.layoutEnabledL}_${cfg.zoomFactorT}_${cfg.margin}_${cfg.squareMode}`;
 
@@ -1904,7 +2075,7 @@
 
     /** 调整 glink 的标题序号 */
     function updateGlinkIndex(items = pageItemsData) {
-        LLog('调整 glink 的标题序号');
+        console.log('LOLICON 调整 glink 的标题序号');
 
         items.forEach((data, index) => {
             const { glink, pageIndex } = data;
@@ -1913,11 +2084,14 @@
                 const glinkSpan = glink.querySelector('span[data-lolicon-index="true"]');
 
                 if (cfg.showIndex) {
+                    const targetText = `【${pageIndex + 1}】 `;
                     if (!glinkSpan) {
                         const span = $el('span');
                         span.setAttribute('data-lolicon-index', 'true');
-                        span.textContent = `【${pageIndex + 1}】 `;
+                        span.textContent = targetText;
                         glink.insertBefore(span, glink.firstChild);
+                    } else if (glinkSpan.textContent !== targetText) {
+                        glinkSpan.textContent = targetText;
                     }
                 } else if (glinkSpan) {
                     glinkSpan.remove();
@@ -1928,7 +2102,7 @@
 
     /** 修改画廊缩略图大小 */
     function modifyThumbnailSizeG(items = pageItemsData) {
-        LLog('修改画廊缩略图大小');
+        console.log('LOLICON 修改画廊缩略图大小');
 
         const currentStatus = `${cfg.layoutEnabledG}_${cfg.zoomFactorG}`;
         const zoomFactorO = cfg.layoutEnabledG ? cfg.zoomFactorG : 1;
@@ -1980,8 +2154,9 @@
     /** 全局状态与常量定义 */
     const PREVIEW_MARGIN = 12; // 预览框距离窗口边缘的最小间距
     let hoverTimer = null; // 悬浮延迟用的定时器
-    let previewLink = $i('lolicon-preview-link');
-    let preview = $i('lolicon-preview');
+    let previewLink = null;
+    let preview = null;
+    let previewShimmer = null;
     let previewImg = null;
 
     /** 预览状态管理 */
@@ -2005,7 +2180,8 @@
 
         preview = $el('div');
         preview.id = 'lolicon-preview';
-        preview.innerHTML = '<img>'; // 用于大图替换、显示
+        preview.innerHTML = '<div class="lolicon-loading-shimmer"></div><img>';// 用于大图替换、显示
+        previewShimmer = preview.querySelector('.lolicon-loading-shimmer');
         previewImg = preview.querySelector('img');
         previewLink.appendChild(preview);
 
@@ -2027,8 +2203,8 @@
         return Math.max(PREVIEW_MARGIN, Math.min(pos, maxPos));
     }
 
-    /** 渲染预览框位置和内容，支持缩放与大图加载 */
-    function renderPreview(loadLarge = true, wheelEvent = null) {
+    /** 计算并更新预览框的几何属性（尺寸与位置），并返回计算结果 */
+    function updatePreviewGeometry(wheelEvent = null) {
         if (!previewState.active) return;
 
         const { bw, bh, scale, el, isDragging } = previewState;
@@ -2066,6 +2242,17 @@
         preview.style.height = ph + 'px';
         preview.style.left = left + 'px';
         preview.style.top = top + 'px';
+
+        return { pw, ph, left, top };
+    }
+
+    /** 渲染预览框位置和内容，支持缩放与大图加载 */
+    function renderPreview(loadLarge = true, wheelEvent = null) {
+        if (!previewState.active) return;
+
+        const { bw, bh, scale, el, isDragging } = previewState;
+        const { pw } = updatePreviewGeometry(wheelEvent);
+
         preview.style.display = 'block';
         enablePanelTop(preview);
 
@@ -2117,19 +2304,51 @@
         }
     }
 
-    /** 异步获取原图 URL */
+    /** 异步获取原图 URL (此处消耗配额)*/
     async function fetchLargeImage(pageUrl) {
+        const parser = new DOMParser();
+        let depth = 0;
+        const getDoc = async (url) => {
+            const res = await queuedFetch(url, {
+                credentials: 'include',
+                q_priority: depth++,
+            });
+            if (!res.ok) throw new Error();
+            return parser.parseFromString(await res.text(), 'text/html');
+        };
+
         try {
-            let targetUrl = pageUrl;
+            let url = pageUrl;
+            let doc = await getDoc(url);
+
+            // 如果是列表页模式，先跳转到图片页面
             if (pageInfo.listDisplayMode === 't') {
-                const res = await fetch(pageUrl);
-                const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
-                targetUrl = doc.querySelector('#gdt > a:nth-child(1)')?.href;
-                if (!targetUrl) return null;
+                if (pageInfo.isEhentai) {
+                    const retry = doc.querySelector('a[href*="nw=session"]')?.href; // R18G
+                    if (retry) doc = await getDoc(retry);
+                }
+                url = doc.querySelector('#gdt a')?.href;
+                if (!url) return null;
+                doc = await getDoc(url);
             }
-            const res = await fetch(targetUrl);
-            const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
-            return doc.querySelector('#img')?.src;
+
+            const img = doc.querySelector('#img');
+            if (!img?.src) return null;
+
+            const loadFail = doc.querySelector("#loadfail");
+            const match = loadFail?.getAttribute("onclick")?.match(/nl\('([^']+)'\)/);
+
+            let retryUrl = null;
+            if (match && match[1]) {
+                const u = new URL(url);
+                u.searchParams.append("nl", match[1]);
+                retryUrl = u.href;
+            }
+
+            return {
+                src: img.src,
+                retryUrl,
+            };
         } catch {
             return null;
         }
@@ -2138,23 +2357,33 @@
     /** 异步加载大图并替换预览框和缩略图 */
     function handleLargeImageLoading() {
         const { data: { url }, el } = previewState;
-        if (el._largeImg || el._isFetching) return;
+        if (el._largeImg) return;
+
+        previewShimmer.style.display = 'block';
+        if (el._isFetching) return;
         el._isFetching = true;
 
-        fetchLargeImage(url).then((src) => {
-            if (!src) {
-                el._isFetching = false;
+        let retryCount = 0;
+
+        fetchLargeImage(url).then((data) => {
+            if (!data?.src) {
+                finishFail();
                 return;
             }
+            loadImage(data.src, data.retryUrl);
+        });
 
+        function loadImage(src, retryUrl = null) {
             const preImg = new Image();
-            preImg.src = src;
+
             preImg.onload = () => {
                 el._largeImg = preImg; // 缓存到元素上
                 el._isFetching = false;
 
                 // 预览框还在显示时更新大图
                 if (previewState.active && previewState.el === el) {
+                    previewShimmer.style.display = 'none';
+                    updatePreviewGeometry();
                     previewImg.src = preImg.src;
 
                     const showImg = () => {
@@ -2181,11 +2410,34 @@
                     el.style.backgroundPosition = 'center';
                 }
             };
-            preImg.onerror = () => {
-                el._largeImg = null;
-                el._isFetching = false;
+
+            preImg.onerror = async () => {
+                if (retryUrl && retryCount < 2) {
+                    retryCount++;
+
+                    try {
+                        console.log(`LOLICON 加载大图失败: ${retryCount * 600}ms 后第 ${retryCount} 次尝试换源重试...\n`, retryUrl);
+                        await new Promise((r) => setTimeout(r, retryCount * 600)); // 稍后重试
+
+                        const retryData = await fetchLargeImage(retryUrl);
+
+                        if (retryData?.src) {
+                            loadImage(retryData.src, retryData.retryUrl);
+                            return;
+                        }
+                    } catch { }
+                }
+                finishFail();
             };
-        });
+
+            preImg.src = src;
+        }
+
+        function finishFail() {
+            el._largeImg = null;
+            el._isFetching = false;
+            previewShimmer.style.display = 'none';
+        }
     }
 
     /** 初始化悬浮预览并计算缩放参数 */
@@ -2232,7 +2484,7 @@
             previewState.bw = widthO * zoomFactorO;
             previewState.bh = heightO * zoomFactorO;
 
-            renderPreview(true)
+            renderPreview();
         }, cfg.hoverDelay * 1000); // 延迟渲染预览
     }
 
@@ -2244,6 +2496,7 @@
         if (preview) {
             preview.style.display = 'none';
             preview.style.backgroundImage = 'none';
+            previewShimmer.style.display = 'none';
             if (previewImg) previewImg.src = '';
         }
 
@@ -2777,11 +3030,6 @@
         const ta = $el('textarea');
         ta.id = 'lolicon-tag-manage-textarea';
 
-        // 隔离 modal 内输入，防止触发全局快捷键
-        ta.addEventListener("keydown", (e) => {
-            e.stopPropagation();
-        }, true);
-
         // 计算最长的按钮名视觉宽度，用于对齐
         const maxW = Math.max(...searchBox.tags.map((t) => visualWidth(t.name || '')), 0);
         // 将 tags 对象格式化为易于编辑的文本
@@ -2820,6 +3068,11 @@
         document.body.append(panel);
         enablePanelTop(panel);
         enablePanelDrag(panel);
+
+        // 防止触发全局快捷键
+        panel.addEventListener('keydown', (e) => {
+            e.stopPropagation();
+        }, true);
 
         // 如果传入 targetIndex，则定位到对应行并选中
         if (Number.isInteger(targetIndex) && targetIndex >= 0 && targetIndex < lines.length) {
@@ -3079,6 +3332,11 @@
                 el.onclick = () => toggleCategory(id);
             });
 
+            // 防止触发全局快捷键
+            searchContainer.addEventListener('keydown', (e) => {
+                e.stopPropagation();
+            }, true);
+
             // 高级选项 Advanced Options 展开/收起逻辑
             const advToggle = $i('adv_toggle');
             const advDiv = $i('advdiv');
@@ -3173,32 +3431,51 @@
                 }
             } else {
                 // 其他页面用 fetch 请求
-                const res = await fetch(window.location.origin + '/uconfig.php');
+                const res = await queuedFetch(window.location.origin + '/uconfig.php', { q_priority: 6 });
                 const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
                 names = [...doc.querySelectorAll('input[name^="favorite_"][type="text"]')].map((i) => i.value.trim());
             }
         } catch (error) {
-            console.error('LOLICON 获取收藏夹目录列表时发生错误：', error);
+            console.error('LOLICON 获取收藏夹目录列表时发生错误：', error.message);
         }
         return names;
     };
 
     /** 收藏夹目录 */
-    let favcat = [];
+    let favCategoryList = [];
+
+    /** 安全获取 localStorage */
+    function safeGetLocalStorage(key) {
+        try {
+            return localStorage.getItem(key);
+        } catch (error) {
+            return null;
+        }
+    }
+
+    /** 安全设置 localStorage */
+    function safeSetLocalStorage(key, value) {
+        try {
+            localStorage.setItem(key, value);
+        } catch (error) {
+            console.warn('LOLICON localStorage 写入失败', error.message);
+        }
+    }
 
     /** 异步函数：更新收藏夹目录 */
     async function updateFavcat() {
-        favcat = await getFavcatList();
-        localStorage.favcat = JSON.stringify(favcat);
-        LLog('更新收藏夹目录', favcat);
+        favCategoryList = await getFavcatList();
+        safeSetLocalStorage('lolicon_favcat', JSON.stringify(favCategoryList));
+        console.log('LOLICON 更新收藏夹目录', favCategoryList);
     }
 
     /** 异步函数：初始化收藏夹列表 */
     async function initFavcat() {
-        if (!localStorage.favcat || localStorage.favcat === '') {
+        const cache = safeGetLocalStorage('lolicon_favcat');
+        if (!cache) {
             await updateFavcat();
         } else {
-            favcat = JSON.parse(localStorage.favcat);
+            favCategoryList = JSON.parse(cache);
         }
     }
 
@@ -3206,13 +3483,14 @@
     const fetchFav = async (url, add, favIndex) => {
         try {
             // 发送POST请求，提交收藏/取消收藏参数
-            const res = await fetch(url, {
+            const res = await queuedFetch(url, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                 body: add
                     ? `favcat=${favIndex}&favnote=&apply=Add+to+Favorites&update=1`
                     : 'favcat=favdel&favnote=&update=1', // 取消收藏请求体
                 credentials: 'same-origin', // 同源策略，携带cookie
+                q_priority: 12,
             });
 
             const html = await res.text();
@@ -3227,7 +3505,7 @@
                 new Function(updateCode)(); // 执行提取的JS代码
             }
         } catch (error) {
-            console.error('LOLICON 发送收藏或取消收藏请求时发生错误：', error);
+            console.error('LOLICON 发送收藏或取消收藏请求时发生错误：', error.message);
         }
     };
 
@@ -3272,7 +3550,7 @@
         }
 
         // 添加收藏夹菜单项
-        favcat.forEach((name, idx) => {
+        favCategoryList.forEach((name, idx) => {
             const label = (cfg.favLayout === 3) ? '❤' : name;
             const color = COLOR_MAP[idx] || '#fff';
 
@@ -3289,7 +3567,7 @@
 
         // 左侧：收藏弹窗
         const popupItem = createMenuItem('⭐', '#fff', () => {
-            window.open(favUrl, '_blank', 'width=675,height=415');
+            window.open(favUrl, '_blank', 'width=675, height=415');
             menu.remove();
         }, { isAction: true, fontSize: 12 });
         actionRow.appendChild(popupItem);
@@ -3356,7 +3634,7 @@
 
         e.stopPropagation();
         // 确保数据存在
-        if (!favcat || favcat.length === 0) {
+        if (!favCategoryList || favCategoryList.length === 0) {
             initFavcat().then(() => showFavMenu(el, favUrl));
         } else {
             showFavMenu(el, favUrl);
@@ -3462,71 +3740,88 @@
     // 10. 加载更多
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
-    /** 加载下一页的状态 */
-    const nextPage = {
-        isLoading: false,
-        nextPageLink: null,
-        loadedCount: 1,
-    };
+    /** 页面加载状态管理 */
+    const nextPage = { isLoading: false, pageLink: null, isError: false, loadedCount: 1 };
+    const prevPage = { isLoading: false, pageLink: null, isError: false };
 
     /** 观察者实例 */
     let scrollObserver = null;
 
-    /** 获取下一页链接 */
-    function getNextPageLink(doc) {
-        if (pageInfo.listDisplayMode) {
-            nextPage.nextPageLink = doc.querySelector('#dnext')?.href;
-            if (nextPage.nextPageLink) {
-                $i('unext').href = nextPage.nextPageLink;
-                $i('dnext').href = nextPage.nextPageLink;
+    /** 提取并更新页面链接 */
+    function updatePageLink(doc, direction = 'both') {
+        if (direction === 'both' || direction === 'next') {
+            if (pageInfo.listDisplayMode) {
+                nextPage.pageLink = doc.querySelector('#dnext')?.href;
+                if (nextPage.pageLink) {
+                    $i('unext').href = nextPage.pageLink;
+                    $i('dnext').href = nextPage.pageLink;
+                }
+            } else if (pageInfo.isGalleryPage) {
+                nextPage.pageLink = doc.querySelector('.ptb tr:first-child td:last-child a')?.href;
+                if (nextPage.pageLink) {
+                    $('.ptt tr:first-child td:last-child a').href = nextPage.pageLink;
+                    $('.ptb tr:first-child td:last-child a').href = nextPage.pageLink;
+                }
             }
-        } else if (pageInfo.isGalleryPage) {
-            nextPage.nextPageLink = doc.querySelector('.ptb tr:first-child td:last-child a')?.href;
-            if (nextPage.nextPageLink) {
-                $('.ptt tr:first-child td:last-child a').href = nextPage.nextPageLink;
-                $('.ptb tr:first-child td:last-child a').href = nextPage.nextPageLink;
+        }
+
+        if (direction === 'both' || direction === 'prev') {
+            if (pageInfo.listDisplayMode) {
+                prevPage.pageLink = doc.querySelector('#dprev')?.href;
+                if (prevPage.pageLink) {
+                    $i('uprev').href = prevPage.pageLink;
+                    $i('dprev').href = prevPage.pageLink;
+                }
+            } else if (pageInfo.isGalleryPage) {
+                prevPage.pageLink = doc.querySelector('.ptb tr:first-child td:first-child a')?.href;
+                if (prevPage.pageLink) {
+                    $('.ptt tr:first-child td:first-child a').href = prevPage.pageLink;
+                    $('.ptb tr:first-child td:first-child a').href = prevPage.pageLink;
+                }
             }
         }
     }
 
-    /** 无限滚动加载下一页 */
-    async function loadNextPage() {
-        if (nextPage.isLoading || !nextPage.nextPageLink) return;
+    /** 无限滚动加载页面内容 */
+    async function loadPage(direction = 'next') {
+        const isNext = direction === 'next';
+        const state = isNext ? nextPage : prevPage;
+        if (state.isLoading || !state.pageLink) return;
 
-        nextPage.isLoading = true;
-        updateLoadingStatus('loading'); // 显示加载中
+        state.isLoading = true;
+        updateLoadingStatus('loading', direction); // 显示加载中
         try {
-            LLog('加载下一页：', nextPage.nextPageLink);
-            const response = await fetch(nextPage.nextPageLink);
+            console.log(`LOLICON 加载${isNext ? '下' : '上'}一页：`, state.pageLink);
+            const response = await queuedFetch(state.pageLink, { q_priority: 2 });
             const html = await response.text();
             const parser = new DOMParser();
             const fetchedDoc = parser.parseFromString(html, 'text/html');
-            let nextContent;
+            let contentNodes;
             if (pageInfo.listDisplayMode === 't') {
-                nextContent = fetchedDoc.querySelectorAll('.gl1t');
+                contentNodes = fetchedDoc.querySelectorAll('.gl1t');
             } else if (pageInfo.listDisplayMode) {
-                nextContent = fetchedDoc.querySelectorAll('.itg > tbody > tr');
+                contentNodes = fetchedDoc.querySelectorAll('.itg > tbody > tr');
             } else if (pageInfo.isGalleryPage) {
-                nextContent = fetchedDoc.querySelectorAll('#gdt > a');
+                contentNodes = fetchedDoc.querySelectorAll('#gdt > a');
             }
 
-            if (nextContent.length > 0) {
+            if (contentNodes.length > 0) {
                 const fragment = document.createDocumentFragment();
-                nextContent.forEach((item, index) => {
+                contentNodes.forEach((item, index) => {
                     if (pageInfo.listDisplayMode === 't' || pageInfo.listDisplayMode === 'e' || pageInfo.isGalleryPage || index > 0) {
                         fragment.appendChild(item);
                     }
                 });
 
-                const newData = pageInfo.listDisplayMode ? collectDataL(fragment) : collectDataG(fragment);
+                const newData = pageInfo.listDisplayMode ? collectDataL(fragment, direction) : collectDataG(fragment, direction);
 
-                $i('lolicon-loading-indicator').before(fragment);
+                isNext ? $i('lolicon-next-indicator').before(fragment) : $i('lolicon-prev-indicator').after(fragment);
 
-                nextPage.loadedCount++;
-                LLog('下一页内容已成功加载。');
+                if (isNext) state.loadedCount++;
+                console.log(`LOLICON ${isNext ? '下' : '上'}一页内容已成功加载。`);
                 if (pageInfo.listDisplayMode) {
                     if (pageInfo.listDisplayMode === 't') modifyThumbnailSizeL(newData);
-                    updateGlinkIndex(newData);
+                    updateGlinkIndex(direction === 'next' ? newData : pageItemsData);
                     if (cfg.quickFavorite) replaceFavClickL(newData);
                     if (cfg.liveURLUpdate && !pageInfo.isPopularPage && !pageInfo.isFavoritesPage) {
                         throttledGetRowInfo();
@@ -3536,27 +3831,27 @@
                 }
 
             } else {
-                LLog('未找到下一页的内容，停止加载。');
+                console.log(`LOLICON 未找到${isNext ? '下' : '上'}一页的内容，停止加载。`);
             }
 
-            getNextPageLink(fetchedDoc);
+            updatePageLink(fetchedDoc, direction);
 
-            if (nextPage.nextPageLink) {
-                LLog('下一页链接已更新为：', nextPage.nextPageLink);
-                updateLoadingStatus('idle');
+            if (state.pageLink) {
+                console.log(`LOLICON ${isNext ? '下' : '上'}一页链接已更新。`);
+                updateLoadingStatus('idle', direction);
             } else {
-                LLog('已是最后一页');
-                updateLoadingStatus('end');
+                console.log(isNext ? 'LOLICON 已是最后一页' : 'LOLICON 已追溯至第一页');
+                updateLoadingStatus('end', direction);
             }
 
         } catch (error) {
-            console.error('LOLICON 加载下一页时发生错误：', error);
-            updateLoadingStatus('error');
+            console.error(`LOLICON 加载${isNext ? '下' : '上'}一页时发生错误：`, error.message);
+            updateLoadingStatus('error', direction);
         } finally {
-            nextPage.isLoading = false;
+            state.isLoading = false;
 
-            if (!nextPage.isError && nextPage.nextPageLink) {
-                const indicator = $i('lolicon-loading-indicator');
+            if (isNext && !state.isError && state.pageLink) {
+                const indicator = $i('lolicon-next-indicator');
                 if (indicator && scrollObserver) {
                     scrollObserver.unobserve(indicator);
                     scrollObserver.observe(indicator);
@@ -3566,26 +3861,37 @@
     }
 
     /** 更新加载指示器 */
-    function updateLoadingStatus(status) {
+    function updateLoadingStatus(status, direction = 'next') {
+        const isNext = direction === 'next';
         const parent = pageInfo.listDisplayMode === 't' ? $c('itg gld')[0] :
             pageInfo.listDisplayMode ? $('.itg > tbody') :
                 pageInfo.isGalleryPage ? $i('gdt') : null;
         if (!parent) return;
         const isTable = parent.tagName === 'TBODY';
-        let container = $i('lolicon-loading-indicator');
+        const indicatorId = isNext ? 'lolicon-next-indicator' : 'lolicon-prev-indicator';
+        let container = $i(indicatorId);
 
         // 不存在则创建
         if (!container) {
             container = $el(isTable ? 'tr' : 'div');
-            container.id = 'lolicon-loading-indicator';
+            container.id = indicatorId;
             container.className = 'lolicon-loading-container';
-            if (isTable) container.innerHTML = '<td colspan="100%""></td>';
-            parent.appendChild(container);
+            if (isTable) container.innerHTML = '<td colspan="100%"></td>';
+            if (isNext) {
+                parent.appendChild(container);
+            } else {
+                if (pageInfo.listDisplayMode === 't' || pageInfo.listDisplayMode === 'e' || pageInfo.isGalleryPage) {
+                    parent.insertBefore(container, parent.firstElementChild);
+                } else {
+                    parent.insertBefore(container, parent.firstElementChild.nextElementSibling);
+                }
+                status = 'idle';
+            }
         }
 
         // 判断是否需要隐藏
         const shouldShow = (cfg.infiniteScroll && pageInfo.listDisplayMode) || (cfg.moreThumbnail && pageInfo.isGalleryPage);
-        if (!shouldShow) {
+        if (!shouldShow || (!isNext && !prevPage.pageLink)) {
             container.style.display = 'none';
             return;
         }
@@ -3594,26 +3900,26 @@
 
         // 配置状态内容
         const config = {
-            idle: `<span class="lolicon-loading-status-text">· · ·</span>`,
+            idle: `<span class="lolicon-loading-status-text loading-link">${translate('loadMoreContent')}</span>`,
             loading: `<div class="lolicon-loading-spinner"></div><span class="lolicon-loading-status-text">${translate('loading')}</span>`,
-            maxLimit: `<span class="lolicon-loading-status-text modern-link">${translate('maxPageReached')}</span>`,
-            end: `<span class="lolicon-loading-status-text">${translate('noMoreContent')}</span>`,
-            error: `<span class="lolicon-loading-status-text modern-link">${translate('loadFailedRetry')}</span>`,
+            end: `<span class="lolicon-loading-status-text loading-end">${translate('noMoreContent')}</span>`,
+            error: `<span class="lolicon-loading-status-text loading-link">${translate('loadFailedRetry')}</span>`,
         };
 
         // 更新 UI
         if (status !== 'toggle') {
             const target = isTable ? container.firstElementChild : container;
             target.innerHTML = config[status];
-            nextPage.isError = (status === 'error');
-            container.onclick = (status === 'error' || status === 'maxLimit') ? () => {
-                nextPage.isError = false; // 解锁
-                throttledLoadNextPage();
+            const state = isNext ? nextPage : prevPage;
+            state.isError = (status === 'error');
+            container.onclick = (status === 'error' || status === 'idle') ? () => {
+                state.isError = false; // 解锁
+                throttledLoadPage(direction);
             } : null;
         }
 
         // 移动到末尾
-        if (parent.lastElementChild !== container) {
+        if (isNext && parent.lastElementChild !== container) {
             parent.appendChild(container);
         }
     }
@@ -3624,10 +3930,10 @@
     /** 获取行信息 */
     function getRowInfo() {
         const layoutRowInfoKey = `${cfg.layoutEnabledL}_${cfg.zoomFactorT}_${cfg.squareMode}_${layout.columnsT}_${pageItemsData.length}`;
-        if (layout.layoutRowInfoKey === layoutRowInfoKey) return
+        if (layout.layoutRowInfoKey === layoutRowInfoKey) return;
         layout.layoutRowInfoKey = layoutRowInfoKey;
 
-        LLog('获取行信息');
+        console.log('LOLICON 获取行信息');
         elementPositions = [];
         const scrollY = window.scrollY;
         const step = (pageInfo.listDisplayMode === 't') ? layout.columnsT : 1;
@@ -3925,17 +4231,17 @@
     function setupScrollObserver() {
         const configKey = pageInfo.isGalleryPage ? 'moreThumbnail' : 'infiniteScroll';
         const maxPagesKey = pageInfo.isGalleryPage ? 'maxPagesG' : 'maxPagesL';
-        if (!nextPage.nextPageLink) {
+        if (!nextPage.pageLink) {
             updateLoadingStatus('end');
             return;
         }
         updateLoadingStatus('idle');
-        const indicator = $i('lolicon-loading-indicator');
+        const indicator = $i('lolicon-next-indicator');
         if (scrollObserver) scrollObserver.disconnect();
         scrollObserver = new IntersectionObserver(([entry]) => {
             if (entry.isIntersecting && !nextPage.isLoading && !nextPage.isError && cfg[configKey]) {
 
-                if (!nextPage.nextPageLink) {
+                if (!nextPage.pageLink) {
                     updateLoadingStatus('end');
                     scrollObserver.unobserve(indicator);
                     return;
@@ -3943,12 +4249,12 @@
 
                 const maxPageLimit = cfg[maxPagesKey];
                 if (maxPageLimit !== 0 && nextPage.loadedCount >= maxPageLimit) {
-                    LLog('已达到最大页数限制: ', nextPage.loadedCount, ' >= ', maxPageLimit);
-                    updateLoadingStatus('maxLimit');
+                    console.log('LOLICON 已达到最大页数限制: ', nextPage.loadedCount, ' >= ', maxPageLimit);
+                    updateLoadingStatus('idle');
                     return;
                 }
 
-                throttledLoadNextPage();
+                throttledLoadPage();
             }
         }, {
             root: (pageInfo.isGalleryPage && cfg.thumbScroll) ? $i('gdt') : null,
@@ -3958,18 +4264,13 @@
         if (indicator) scrollObserver.observe(indicator);
     }
 
-    /** 输出日志 */
-    function LLog(...args) {
-        // console.log('[LOLICON]', ...args);
-    }
-
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
     // 初始化与事件绑定
     /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 
     /** 应用更改 */
     function applyChanges() {
-        LLog('应用更改 开始');
+        console.log('LOLICON 应用更改 开始');
         if (pageInfo.isFavoritesPage) {
             $c('ido')[0].style.minWidth = !cfg.layoutEnabledL ? '930px' : '740px';
         }
@@ -3980,6 +4281,7 @@
             updateGlinkIndex();
             quickTagPanel();
             updateLoadingStatus('toggle');
+            updateLoadingStatus('toggle', 'prev');
             cfg.quickFavorite ? replaceFavClickL() : restoreElements();
             if (cfg.liveURLUpdate && !pageInfo.isPopularPage && !pageInfo.isFavoritesPage) {
                 throttledGetRowInfo();
@@ -3991,6 +4293,7 @@
             quickTagPanel();
             setupThumbScroller();
             updateLoadingStatus('toggle');
+            updateLoadingStatus('toggle', 'prev');
             cfg.quickFavorite ? replaceFavClickG() : restoreElements();
         } else if (pageInfo.hasSearchBox) {
             throttledAdjustColumnsL();
@@ -4003,7 +4306,7 @@
         if (toggleEHInfo.allowed) {
             toggleEHButton();
         }
-        LLog('应用更改 结束');
+        console.log('LOLICON 应用更改 结束');
     }
 
     /** 绑定全局事件 */
@@ -4026,7 +4329,7 @@
 
     /** 启动!! */
     function init() {
-        LLog('启动 开始');
+        console.log('LOLICON 启动 开始');
 
         // 设置菜单
         GM_registerMenuCommand(translate('settings'), showSettingsPanel);
@@ -4044,17 +4347,17 @@
         // 初始数据收集
         if (pageInfo.listDisplayMode) {
             collectDataL();
-            getNextPageLink(document);
+            updatePageLink(document);
         } else if (pageInfo.isGalleryPage) {
             collectDataG();
-            getNextPageLink(document);
+            updatePageLink(document);
         }
 
         // 应用初始变更
         applyChanges();
         bindEvents();
 
-        LLog('启动 结束');
+        console.log('LOLICON 启动 结束');
     }
 
     init();
